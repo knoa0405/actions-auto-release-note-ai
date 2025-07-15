@@ -17,4 +17,5 @@ outputs:
   pr_url:
     description: "Created pull-request URL"
 runs:
+  using: "node20"
   main: "index.js"
