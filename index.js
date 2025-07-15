@@ -65,9 +65,13 @@ function bumpVersion(prev, notes) {
 
 async function run() {
   const lastTag = await getLastTag();
+  console.log("lastTag", lastTag);
   const commits = await getCommitsSince(lastTag);
+  console.log("commits", commits);
   const noteMd = await generateReleaseNotes(commits);
+  console.log("noteMd", noteMd);
   const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), noteMd);
+  console.log("nextVersion", nextVersion);
 
   // CHANGELOG.md 덮어쓰기
   fs.writeFileSync("CHANGELOG.md", `## v${nextVersion}\n\n${noteMd}\n`, {
