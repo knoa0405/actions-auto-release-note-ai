@@ -4,7 +4,7 @@ outputs:
   pr_url:
     description: "Created pull-request URL"
 runs:
+  main: "index.js"
   env:
     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  main: "index.js"
