@@ -4,15 +4,12 @@ import semver from "semver";
 import OpenAI from "openai";
 import fs from "node:fs";
 import process from "node:process";
-import * as core from "@actions/core";
 
 // 필수 ENV
-const GH_TOKEN = process.env.GITHUB_TOKEN;
-const OPENAI_API_KEY = core.getInput("openai_api_key");
 const OWNER = process.env.GITHUB_REPOSITORY_OWNER;
 const REPO = process.env.GITHUB_REPOSITORY.split("/")[1];
-
-console.log(GH_TOKEN, OPENAI_API_KEY, OWNER, REPO);
+const OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
+const GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
 
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });

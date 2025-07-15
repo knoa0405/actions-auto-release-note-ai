@@ -4,6 +4,9 @@ inputs:
   openai_api_key:
     description: "OpenAI API key"
     required: true
+  github_token:
+    description: "GitHub token"
+    required: true
 outputs:
   pr_url:
     description: "Created pull-request URL"
