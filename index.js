@@ -7,7 +7,7 @@ import process from "node:process";
 import * as core from "@actions/core";
 
 // 필수 ENV
-const GH_TOKEN = process.env.GH_TOKEN;
+const GH_TOKEN = process.env.GITHUB_TOKEN;
 const OPENAI_API_KEY = core.getInput("openai_api_key");
 const OWNER = process.env.GITHUB_REPOSITORY_OWNER;
 const REPO = process.env.GITHUB_REPOSITORY.split("/")[1];
