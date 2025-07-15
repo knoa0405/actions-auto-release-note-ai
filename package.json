@@ -1,0 +1,25 @@
+{
+  "name": "actions-auto-release-note-ai",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Knoa0405/actions-auto-release-note-ai.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Knoa0405/actions-auto-release-note-ai/issues"
+  },
+  "homepage": "https://github.com/Knoa0405/actions-auto-release-note-ai#readme",
+  "description": "",
+  "dependencies": {
+    "@octokit/core": "^5.2.2",
+    "dayjs": "^1.11.13",
+    "openai": "^4.104.0",
+    "semver": "^7.7.2"
+  }
+}
