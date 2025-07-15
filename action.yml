@@ -1,10 +1,20 @@
 name: "Create Release PR"
 description: "Generate release branch & PR with LLM-powered notes"
+inputs:
+  openai_api_key:
+    description: "OpenAI API key"
+    required: true
+  github_token:
+    description: "GitHub token"
+    required: true
+  owner:
+    description: "GitHub repository owner"
+    required: true
+  repo:
+    description: "GitHub repository name"
+    required: true
 outputs:
   pr_url:
     description: "Created pull-request URL"
 runs:
   main: "index.js"
-  env:
-    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
