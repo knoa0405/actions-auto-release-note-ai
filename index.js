@@ -94,6 +94,9 @@ async function run() {
     repo: REPO,
     ref: `refs/heads/${branch}`,
     sha: mainRef.object.sha,
+    headers: {
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
   });
 
   await octo.request("POST /repos/{owner}/{repo}/pulls", {
