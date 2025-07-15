@@ -12,6 +12,8 @@ const OPENAI_API_KEY = core.getInput("openai_api_key");
 const OWNER = process.env.GITHUB_REPOSITORY_OWNER;
 const REPO = process.env.GITHUB_REPOSITORY.split("/")[1];
 
+console.log(GH_TOKEN, OPENAI_API_KEY, OWNER, REPO);
+
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
