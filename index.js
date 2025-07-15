@@ -2,7 +2,6 @@ import { Octokit } from "@octokit/core";
 import dayjs from "dayjs";
 import semver from "semver";
 import OpenAI from "openai";
-import fs from "node:fs";
 import process from "node:process";
 
 // 필수 ENV
@@ -10,6 +9,8 @@ const OWNER = process.env.GITHUB_REPOSITORY_OWNER;
 const REPO = process.env.GITHUB_REPOSITORY.split("/")[1];
 const OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
 const GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
+
+console.log(OWNER, REPO, OPENAI_API_KEY, GH_TOKEN);
 
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -70,11 +71,6 @@ async function run() {
   const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), noteMd);
   console.log("nextVersion", nextVersion);
 
-  // CHANGELOG.md 덮어쓰기
-  fs.writeFileSync("CHANGELOG.md", `## v${nextVersion}\n\n${noteMd}\n`, {
-    flag: "a", // append
-  });
-
   // 릴리스 브랜치 + PR
   const branch = `release/${dayjs().format("YYYY-MM-DD")}`;
   const { data: mainRef } = await octo.request(
@@ -101,7 +97,7 @@ async function run() {
     repo: REPO,
     title: `Release v${nextVersion}`,
     head: branch,
-    base: "main",
+    base: "production",
     body: `## v${nextVersion}\n\n${noteMd}`,
   });
 
