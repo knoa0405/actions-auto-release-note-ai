@@ -18,6 +18,8 @@ async function getLastTag() {
     owner: OWNER,
     repo: REPO,
   });
+
+  console.log("data", data);
   return data[0]?.name ?? "0.0.0";
 }
 
