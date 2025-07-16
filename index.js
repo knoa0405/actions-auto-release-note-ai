@@ -4,7 +4,6 @@ import semver from "semver";
 import OpenAI from "openai";
 import process from "node:process";
 
-// 필수 ENV
 const OWNER = process.env.GITHUB_REPOSITORY_OWNER;
 const REPO = process.env.GITHUB_REPOSITORY.split("/")[1];
 const OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
