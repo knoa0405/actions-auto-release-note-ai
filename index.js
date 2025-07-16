@@ -47,7 +47,7 @@ async function generateReleaseNotes(commits) {
   const chat = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages,
-    max_tokens: 400,
+    max_tokens: 1000,
   });
 
   return chat.choices[0].message.content.trim();
@@ -61,16 +61,13 @@ function bumpVersion(prev, commits) {
 
 async function run() {
   const lastTag = await getLastTag();
-  console.log("lastTag", lastTag);
   const commits = await getCommitsSince(lastTag);
-  console.log("commits", commits);
   const noteMd = await generateReleaseNotes(commits);
-  console.log("noteMd", noteMd);
+
   const nextVersion = bumpVersion(
     lastTag.replace(/^v?/, ""),
     commits.join("\n")
   );
-  console.log("nextVersion", nextVersion);
 
   await octo.request("POST /repos/{owner}/{repo}/releases", {
     owner: OWNER,
@@ -80,8 +77,8 @@ async function run() {
     generate_release_notes: true,
   });
 
-  // 릴리스 브랜치 + PR
   const branch = `release/${dayjs().format("YYYY-MM-DD")}`;
+
   const { data: mainRef } = await octo.request(
     "GET /repos/{owner}/{repo}/git/ref/{ref}",
     {
