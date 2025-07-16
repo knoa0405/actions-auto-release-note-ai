@@ -60,12 +60,16 @@ function bumpVersion(prev, commits) {
 
 async function run() {
   const lastTag = await getLastTag();
+  console.log("lastTag", lastTag);
   const commits = await getCommitsSince(lastTag);
+  console.log("commits", commits);
   const noteMd = await generateReleaseNotes(commits);
+  console.log("noteMd", noteMd);
   const nextVersion = bumpVersion(
     lastTag.replace(/^v?/, ""),
     commits.join("\n")
   );
+  console.log("nextVersion", nextVersion);
 
   await octo.request("POST /repos/{owner}/{repo}/releases", {
     owner: OWNER,
