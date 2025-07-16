@@ -19,8 +19,7 @@ async function getLastTag() {
     repo: REPO,
   });
 
-  console.log("data", data);
-  return data[0]?.name ?? "0.0.0";
+  return data.at(-1)?.name ?? "0.0.0";
 }
 
 async function getCommitsSince(tag) {
