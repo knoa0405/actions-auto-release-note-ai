@@ -10,8 +10,6 @@ const REPO = process.env.GITHUB_REPOSITORY.split("/")[1];
 const OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
 const GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
 
-console.log(OWNER, REPO, OPENAI_API_KEY, GH_TOKEN);
-
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
@@ -20,6 +18,8 @@ async function getLastTag() {
     owner: OWNER,
     repo: REPO,
     per_page: 1,
+    sort: "created",
+    direction: "desc",
   });
   return data[0]?.name ?? "0.0.0";
 }
@@ -41,7 +41,7 @@ async function generateReleaseNotes(commits) {
     {
       role: "system",
       content:
-        "You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists.",
+        "You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists. The output should be in Korean.",
     },
     { role: "user", content: JSON.stringify(commits) },
   ];
@@ -70,6 +70,14 @@ async function run() {
   console.log("noteMd", noteMd);
   const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), noteMd);
   console.log("nextVersion", nextVersion);
+
+  await octo.request("POST /repos/{owner}/{repo}/releases", {
+    owner: OWNER,
+    repo: REPO,
+    tag_name: nextVersion,
+    name: nextVersion,
+    generate_release_notes: true,
+  });
 
   // 릴리스 브랜치 + PR
   const branch = `release/${dayjs().format("YYYY-MM-DD")}`;
