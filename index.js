@@ -19,7 +19,7 @@ async function getLastTag() {
     repo: REPO,
     per_page: 1,
     sort: "created",
-    direction: "desc",
+    direction: "asc",
   });
   return data[0]?.name ?? "0.0.0";
 }
