@@ -17,9 +17,6 @@ async function getLastTag() {
   const { data } = await octo.request("GET /repos/{owner}/{repo}/tags", {
     owner: OWNER,
     repo: REPO,
-    per_page: 1,
-    sort: "created",
-    direction: "asc",
   });
   return data[0]?.name ?? "0.0.0";
 }
@@ -55,21 +52,20 @@ async function generateReleaseNotes(commits) {
   return chat.choices[0].message.content.trim();
 }
 
-function bumpVersion(prev, notes) {
-  if (/BREAKING|major/i.test(notes)) return semver.inc(prev, "major");
-  if (/feat|feature/i.test(notes)) return semver.inc(prev, "minor");
+function bumpVersion(prev, commits) {
+  if (/BREAKING|major/i.test(commits)) return semver.inc(prev, "major");
+  if (/feat|feature/i.test(commits)) return semver.inc(prev, "minor");
   return semver.inc(prev, "patch");
 }
 
 async function run() {
   const lastTag = await getLastTag();
-  console.log("lastTag", lastTag);
   const commits = await getCommitsSince(lastTag);
-  console.log("commits", commits);
   const noteMd = await generateReleaseNotes(commits);
-  console.log("noteMd", noteMd);
-  const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), noteMd);
-  console.log("nextVersion", nextVersion);
+  const nextVersion = bumpVersion(
+    lastTag.replace(/^v?/, ""),
+    commits.join("\n")
+  );
 
   await octo.request("POST /repos/{owner}/{repo}/releases", {
     owner: OWNER,
