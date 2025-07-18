@@ -121,13 +121,18 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
     for (const pattern of workflowPatterns) {
       const workflow = workflows.find(
         (wf) =>
-          wf.name.includes(pattern.replace(".yml", "")) ||
-          wf.path.includes(pattern)
+          wf.name
+            .toLowerCase()
+            .includes(pattern.replace(".yml", "").toLowerCase()) ||
+          wf.path.toLowerCase().includes(pattern.toLowerCase()) ||
+          wf.path.includes(
+            `deploy-production-${workspace === "bo" ? "backoffice" : workspace}`
+          )
       );
 
       if (workflow) {
         try {
-          const { data } = await octo.request(
+          await octo.request(
             "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
             {
               owner: OWNER,
@@ -137,18 +142,43 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
             }
           );
 
+          // 최근 실행 정보 가져오기 (실제 run URL을 위해)
+          const { data: runs } = await octo.request(
+            "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
+            {
+              owner: OWNER,
+              repo: REPO,
+              workflow_id: workflow.id,
+              per_page: 1,
+            }
+          );
+
+          const runUrl = runs.workflow_runs[0]
+            ? runs.workflow_runs[0].html_url
+            : `https://github.com/${OWNER}/${REPO}/actions/workflows/${workflow.path}`;
+
           triggeredWorkflows.push({
             workspace,
             workflowName: workflow.name,
             workflowId: workflow.id,
-            url: `https://github.com/${OWNER}/${REPO}/actions/workflows/${workflow.path}`,
+            url: runUrl,
           });
+
+          console.log(
+            `✅ Triggered workflow: ${workflow.name} for ${workspace}`
+          );
         } catch (error) {
           console.error(
-            `Failed to trigger workflow ${workflow.name}:`,
+            `❌ Failed to trigger workflow ${workflow.name}:`,
             error.message
           );
         }
+      } else {
+        console.warn(
+          `⚠️  No workflow found for ${workspace} with patterns: ${workflowPatterns.join(
+            ", "
+          )}`
+        );
       }
     }
   }
