@@ -71,16 +71,23 @@ async function getCommitsSince(tag) {
   };
 }
 
-async function generateReleaseNotes(commits) {
+async function generateReleaseNotes(commits, changedWorkspaces) {
   const messages = [
     {
       role: "system",
       content: `You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists. The output should be in Korean.
-        카테고리는 다음과 같다.
+        카테고리는 변경된 워크스페이스에 따라 노트를 작성해줘.
+        변경된 워크스페이스는 다음과 같다. ${changedWorkspaces.join(", ")}
         - Backoffice: BO
-        - Service: KR, JP, INTL
-        
+        - Service: KR
+        - Service: JP
+        - Service: INTL
+        - Service: INTL-ASIA
+        - Service: INTL-US
+        - Service: INTL-US-EAST
+        - Chore: 빌드, 테스트, 패키지 업데이트, 문서 수정 등
         커밋들을 참고해서 카테고리를 정해주고, 카테고리 별로 커밋 내용에 있는 기능, 버그 수정, 코드 개선 등을 그룹화해줘.
+        변경된 워크스페이스가 없으면, chore 카테고리로 작성해줘.
         `,
     },
     { role: "user", content: JSON.stringify(commits) },
@@ -320,10 +327,9 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
 async function run() {
   const lastTag = await getLastTag();
   const { commits, files } = await getCommitsSince(lastTag);
-  const noteMd = await generateReleaseNotes(commits);
 
   console.log("🔍 Last tag:", lastTag);
-  console.log("🔍 Note MD:", noteMd);
+  console.log("🔍 Commits:", commits);
 
   const nextVersion = bumpVersion(
     lastTag.replace(/^v?/, ""),
@@ -334,11 +340,14 @@ async function run() {
 
   // 변경된 워크스페이스 파싱
   const changedWorkspaces = await getWorkspaceChangesByTreeHash(lastTag);
+  const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
   console.log("🔍 Changed workspaces:", changedWorkspaces);
   console.log(
     "📁 Changed files:",
     files?.map((f) => f.filename).join(", ") || "None"
   );
+
+  console.log("🔍 Note MD:", noteMd);
 
   // GitHub 릴리즈 생성
   await octo.request("POST /repos/{owner}/{repo}/releases", {
