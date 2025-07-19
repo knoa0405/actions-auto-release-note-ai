@@ -143,7 +143,7 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
               owner: OWNER,
               repo: REPO,
               workflow_id: workflow.id,
-              ref: TARGET_BRANCH,
+              ref: BASE_BRANCH,
             }
           );
 
