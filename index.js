@@ -315,6 +315,8 @@ async function run() {
     commits.join("\n")
   );
 
+  console.log("🔍 Next version:", nextVersion);
+
   // 변경된 워크스페이스 파싱
   const changedWorkspaces = await getWorkspaceChangesByTreeHash(lastTag);
   console.log("🔍 Changed workspaces:", changedWorkspaces);
