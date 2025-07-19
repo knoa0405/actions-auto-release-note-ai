@@ -1,9 +1,7 @@
 name: Deploy Production - INTL - Asia
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:

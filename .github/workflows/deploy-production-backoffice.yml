@@ -1,9 +1,7 @@
 name: Deploy Production - Backoffice
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:

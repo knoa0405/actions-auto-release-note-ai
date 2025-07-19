@@ -24,14 +24,14 @@ const WORKSPACE_MAPPING = {
 };
 
 const WORKFLOW_PATTERNS = {
-  kr: ["deploy-production-kr.yml"],
-  jp: ["deploy-production-jp.yml"],
-  intl: [
+  "coloso-kr": ["deploy-production-kr.yml"],
+  "coloso-jp": ["deploy-production-jp.yml"],
+  "coloso-intl": [
     "deploy-production-intl-asia.yml",
     "deploy-production-intl-us.yml",
     "deploy-production-intl-us-east.yml",
   ],
-  bo: ["deploy-production-backoffice.yml"],
+  "coloso-backoffice": ["deploy-production-backoffice.yml"],
 };
 
 async function getLastTag() {
@@ -77,17 +77,11 @@ async function generateReleaseNotes(commits, changedWorkspaces) {
       role: "system",
       content: `You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists. The output should be in Korean.
         카테고리는 변경된 워크스페이스에 따라 노트를 작성해줘.
-        변경된 워크스페이스는 다음과 같다. ${changedWorkspaces.join(", ")}
-        - Backoffice: BO
-        - Service: KR
-        - Service: JP
-        - Service: INTL
-        - Service: INTL-ASIA
-        - Service: INTL-US
-        - Service: INTL-US-EAST
-        - Chore: 빌드, 테스트, 패키지 업데이트, 문서 수정 등
-        커밋들을 참고해서 카테고리를 정해주고, 카테고리 별로 커밋 내용에 있는 기능, 버그 수정, 코드 개선 등을 그룹화해줘.
-        변경된 워크스페이스가 없으면, chore 카테고리로 작성해줘.
+        변경된 워크스페이스는 ${changedWorkspaces.join(", ")} 이다.
+        카테고리는 다음과 같다.
+        [Backoffice, Service: KR, Service: JP, Service: INTL(ASIA, US, US-EAST), Chore]
+        변경된 워크스페이스와 카테고리를 매칭해서, 카테고리를 정해주고, 커밋들을 참고해서 카테고리 별로 커밋 내용에 있는 기능, 버그 수정, 코드 개선 등을 그룹화해줘.
+        변경된 워크스페이스가 없으면, 카테고리는 chore 카테고리로 넣어주면 돼.
         `,
     },
     { role: "user", content: JSON.stringify(commits) },
@@ -108,54 +102,6 @@ function bumpVersion(prev, commits) {
   return semver.inc(prev, "patch");
 }
 
-async function getWorkspaceChangesByTreeHash(tag) {
-  const { data } = await octo.request(
-    "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
-    {
-      owner: OWNER,
-      repo: REPO,
-      tree_sha: BASE_BRANCH,
-    }
-  );
-
-  console.log("🔍 Workspace trees:", data);
-  const workspaceTrees = {};
-  data.tree.forEach((item) => {
-    if (
-      item.type === "tree" &&
-      ["kr", "jp", "intl", "bo"].includes(item.path)
-    ) {
-      workspaceTrees[item.path] = item.sha;
-    }
-  });
-
-  console.log("🔍 Workspace trees:", workspaceTrees);
-  // 이전 태그와 비교
-  const { data: prevData } = await octo.request(
-    "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
-    {
-      owner: OWNER,
-      repo: REPO,
-      tree_sha: tag,
-    }
-  );
-
-  console.log("🔍 Previous workspace trees:", prevData);
-
-  const changedWorkspaces = [];
-  prevData.tree.forEach((item) => {
-    if (item.type === "tree" && workspaceTrees[item.path]) {
-      if (item.sha !== workspaceTrees[item.path]) {
-        changedWorkspaces.push(item.path);
-      }
-    }
-  });
-
-  console.log("🔍 Changed workspaces:", changedWorkspaces);
-
-  return changedWorkspaces;
-}
-
 async function getWorkflows() {
   try {
     const { data } = await octo.request(
@@ -165,7 +111,6 @@ async function getWorkflows() {
         repo: REPO,
       }
     );
-    console.log("🔍 Workflows:", data.workflows);
     return data.workflows;
   } catch (error) {
     console.warn("Could not fetch workflows:", error.message);
@@ -178,7 +123,6 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
 
   for (const workspace of changedWorkspaces) {
     const workflowPatterns = WORKFLOW_PATTERNS[workspace] || [];
-    console.log("🔍 Workflow patterns:", workflowPatterns);
 
     for (const pattern of workflowPatterns) {
       const workflow = workflows.find(
@@ -186,11 +130,10 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
           wf.name
             .toLowerCase()
             .includes(pattern.replace(".yml", "").toLowerCase()) ||
-          wf.path.toLowerCase().includes(pattern.toLowerCase()) ||
-          wf.path.includes(
-            `deploy-production-${workspace === "bo" ? "backoffice" : workspace}`
-          )
+          wf.path.toLowerCase().includes(pattern.toLowerCase())
       );
+
+      console.log("🔍 Workflow:", workflow);
 
       if (workflow) {
         try {
@@ -214,6 +157,8 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
               per_page: 1,
             }
           );
+
+          console.log("🔍 Runs:", runs);
 
           const runUrl = runs.workflow_runs[0]
             ? runs.workflow_runs[0].html_url
@@ -263,6 +208,8 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
     }
   });
 
+  console.log("🔍 Triggered workflows:", triggeredWorkflows);
+
   let template = `h2. Release v${nextVersion}\n\n`;
 
   // 각 서비스별로 섹션 생성
@@ -275,6 +222,7 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
 
   services.forEach((service) => {
     const workflows = workspaceGroups[service.key];
+    console.log("🔍 Workflows for service:", service.name, workflows);
     if (workflows && workflows.length > 0) {
       template += `h2. ${service.name}\n\n`;
       template += `*Pull Request:* [${prUrl}|${prUrl}|smart-link]\n`;
@@ -289,6 +237,8 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
       template += `\n\n`;
     }
   });
+
+  console.log("🔍 JIRA template:", template);
 
   return template;
 }
@@ -324,28 +274,33 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
   }
 }
 
+async function getChangedWorkspaces(files) {
+  const changedWorkspaces = files.map((file) => {
+    if (file.filename.includes("coloso-")) {
+      return file.filename.split("/")[0];
+    }
+    return null;
+  });
+  return changedWorkspaces.filter((ws) => ws !== null);
+}
+
 async function run() {
   const lastTag = await getLastTag();
   const { commits, files } = await getCommitsSince(lastTag);
-
-  console.log("🔍 Last tag:", lastTag);
-  console.log("🔍 Commits:", commits);
 
   const nextVersion = bumpVersion(
     lastTag.replace(/^v?/, ""),
     commits.join("\n")
   );
 
-  console.log("🔍 Next version:", nextVersion);
+  const changedWorkspaces = await getChangedWorkspaces(files);
 
-  // 변경된 워크스페이스 파싱
-  const changedWorkspaces = await getWorkspaceChangesByTreeHash(lastTag);
-  const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
   console.log("🔍 Changed workspaces:", changedWorkspaces);
   console.log(
     "📁 Changed files:",
     files?.map((f) => f.filename).join(", ") || "None"
   );
+  const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
 
   console.log("🔍 Note MD:", noteMd);
 
@@ -398,6 +353,7 @@ async function run() {
   // 워크플로우 가져오기 및 실행
   if (changedWorkspaces.length > 0) {
     const workflows = await getWorkflows();
+    // TODO: production 브랜치에 release 브랜치가 머지된 이후 실행
     const triggeredWorkflows = await triggerWorkflows(
       changedWorkspaces,
       workflows

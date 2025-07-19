@@ -1,4 +1,4 @@
-name: Deploy Production - JP
+name: Deploy Production - INTL - US-EAST
 
 on:
   workflow_dispatch:
@@ -12,5 +12,5 @@ jobs:
 
       - name: Deploy
         run: |
-          echo "Deploying to JP"
-          echo "Deploying to JP"
+          echo "Deploying to INTL"
+          echo "Deploying to INTL"
