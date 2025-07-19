@@ -1,4 +1,4 @@
-name: Deploy Production - INTL
+name: Deploy Production - INTL - Asia
 
 on:
   push:

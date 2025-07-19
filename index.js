@@ -16,7 +16,6 @@ const N8N_URL = process.env.INPUT_N8N_URL;
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-// 워크스페이스 매핑
 const WORKSPACE_MAPPING = {
   kr: "coloso-kr",
   jp: "coloso-jp",
@@ -24,7 +23,6 @@ const WORKSPACE_MAPPING = {
   bo: "coloso-backoffice",
 };
 
-// 워크플로우 패턴 매핑
 const WORKFLOW_PATTERNS = {
   kr: ["deploy-production-kr.yml"],
   jp: ["deploy-production-jp.yml"],
