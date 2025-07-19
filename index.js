@@ -102,54 +102,6 @@ function bumpVersion(prev, commits) {
   return semver.inc(prev, "patch");
 }
 
-async function getWorkspaceChangesByTreeHash(tag) {
-  const { data } = await octo.request(
-    "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
-    {
-      owner: OWNER,
-      repo: REPO,
-      tree_sha: BASE_BRANCH,
-    }
-  );
-
-  console.log("🔍 Workspace trees:", data);
-  const workspaceTrees = {};
-  data.tree.forEach((item) => {
-    if (
-      item.type === "tree" &&
-      ["kr", "jp", "intl", "bo"].includes(item.path)
-    ) {
-      workspaceTrees[item.path] = item.sha;
-    }
-  });
-
-  console.log("🔍 Workspace trees:", workspaceTrees);
-  // 이전 태그와 비교
-  const { data: prevData } = await octo.request(
-    "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
-    {
-      owner: OWNER,
-      repo: REPO,
-      tree_sha: tag,
-    }
-  );
-
-  console.log("🔍 Previous workspace trees:", prevData);
-
-  const changedWorkspaces = [];
-  prevData.tree.forEach((item) => {
-    if (item.type === "tree" && workspaceTrees[item.path]) {
-      if (item.sha !== workspaceTrees[item.path]) {
-        changedWorkspaces.push(item.path);
-      }
-    }
-  });
-
-  console.log("🔍 Changed workspaces:", changedWorkspaces);
-
-  return changedWorkspaces;
-}
-
 async function getWorkflows() {
   try {
     const { data } = await octo.request(
@@ -172,7 +124,6 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
 
   for (const workspace of changedWorkspaces) {
     const workflowPatterns = WORKFLOW_PATTERNS[workspace] || [];
-    console.log("🔍 Workflow patterns:", workflowPatterns);
 
     for (const pattern of workflowPatterns) {
       const workflow = workflows.find(
@@ -182,6 +133,8 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
             .includes(pattern.replace(".yml", "").toLowerCase()) ||
           wf.path.toLowerCase().includes(pattern.toLowerCase())
       );
+
+      console.log("🔍 Workflow:", workflow);
 
       if (workflow) {
         try {
@@ -205,6 +158,8 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
               per_page: 1,
             }
           );
+
+          console.log("🔍 Runs:", runs);
 
           const runUrl = runs.workflow_runs[0]
             ? runs.workflow_runs[0].html_url
@@ -254,6 +209,8 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
     }
   });
 
+  console.log("🔍 Triggered workflows:", triggeredWorkflows);
+
   let template = `h2. Release v${nextVersion}\n\n`;
 
   // 각 서비스별로 섹션 생성
@@ -266,7 +223,9 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
 
   services.forEach((service) => {
     const workflows = workspaceGroups[service.key];
+    console.log("🔍 Workflows:", workflows);
     if (workflows && workflows.length > 0) {
+      console.log("🔍 Service:", service);
       template += `h2. ${service.name}\n\n`;
       template += `*Pull Request:* [${prUrl}|${prUrl}|smart-link]\n`;
       template += `*Branch:* {{${TARGET_BRANCH}}}\n`;
@@ -280,6 +239,8 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
       template += `\n\n`;
     }
   });
+
+  console.log("🔍 JIRA template:", template);
 
   return template;
 }
