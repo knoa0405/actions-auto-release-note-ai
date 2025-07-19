@@ -324,28 +324,33 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
   }
 }
 
+async function getChangedWorkspaces(files) {
+  const changedWorkspaces = files.map((file) => {
+    if (file.filename.includes("coloso-")) {
+      return file.filename.split("/")[0];
+    }
+    return null;
+  });
+  return changedWorkspaces.filter((ws) => ws !== null);
+}
+
 async function run() {
   const lastTag = await getLastTag();
   const { commits, files } = await getCommitsSince(lastTag);
-
-  console.log("🔍 Last tag:", lastTag);
-  console.log("🔍 Commits:", commits);
 
   const nextVersion = bumpVersion(
     lastTag.replace(/^v?/, ""),
     commits.join("\n")
   );
 
-  console.log("🔍 Next version:", nextVersion);
+  const changedWorkspaces = await getChangedWorkspaces(files);
 
-  // 변경된 워크스페이스 파싱
-  const changedWorkspaces = await getWorkspaceChangesByTreeHash(lastTag);
-  const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
   console.log("🔍 Changed workspaces:", changedWorkspaces);
   console.log(
     "📁 Changed files:",
     files?.map((f) => f.filename).join(", ") || "None"
   );
+  const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
 
   console.log("🔍 Note MD:", noteMd);
 
