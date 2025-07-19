@@ -2,7 +2,6 @@ import { Octokit } from "@octokit/core";
 import dayjs from "dayjs";
 import semver from "semver";
 import OpenAI from "openai";
-import fs from "node:fs";
 import process from "node:process";
 
 // 필수 ENV
@@ -18,9 +17,9 @@ async function getLastTag() {
   const { data } = await octo.request("GET /repos/{owner}/{repo}/tags", {
     owner: OWNER,
     repo: REPO,
-    per_page: 1,
   });
-  return data[0]?.name ?? "0.0.0";
+
+  return data.at(-1)?.name ?? "0.0.0";
 }
 
 async function getCommitsSince(tag) {
@@ -40,7 +39,7 @@ async function generateReleaseNotes(commits) {
     {
       role: "system",
       content:
-        "You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists.",
+        "You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists. The output should be in Korean.",
     },
     { role: "user", content: JSON.stringify(commits) },
   ];
@@ -54,9 +53,9 @@ async function generateReleaseNotes(commits) {
   return chat.choices[0].message.content.trim();
 }
 
-function bumpVersion(prev, notes) {
-  if (/BREAKING|major/i.test(notes)) return semver.inc(prev, "major");
-  if (/feat|feature/i.test(notes)) return semver.inc(prev, "minor");
+function bumpVersion(prev, commits) {
+  if (/BREAKING|major/i.test(commits)) return semver.inc(prev, "major");
+  if (/feat|feature/i.test(commits)) return semver.inc(prev, "minor");
   return semver.inc(prev, "patch");
 }
 
@@ -67,12 +66,18 @@ async function run() {
   console.log("commits", commits);
   const noteMd = await generateReleaseNotes(commits);
   console.log("noteMd", noteMd);
-  const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), noteMd);
+  const nextVersion = bumpVersion(
+    lastTag.replace(/^v?/, ""),
+    commits.join("\n")
+  );
   console.log("nextVersion", nextVersion);
 
-  // CHANGELOG.md 덮어쓰기
-  fs.writeFileSync("CHANGELOG.md", `## v${nextVersion}\n\n${noteMd}\n`, {
-    flag: "a", // append
+  await octo.request("POST /repos/{owner}/{repo}/releases", {
+    owner: OWNER,
+    repo: REPO,
+    tag_name: nextVersion,
+    name: nextVersion,
+    generate_release_notes: true,
   });
 
   // 릴리스 브랜치 + PR
@@ -101,7 +106,7 @@ async function run() {
     repo: REPO,
     title: `Release v${nextVersion}`,
     head: branch,
-    base: "main",
+    base: "production",
     body: `## v${nextVersion}\n\n${noteMd}`,
   });
 
