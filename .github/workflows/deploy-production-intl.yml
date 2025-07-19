@@ -1,0 +1,18 @@
+name: Deploy Production - INTL
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy
+        run: |
+          echo "Deploying to INTL"
+          echo "Deploying to INTL"

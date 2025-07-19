@@ -1,5 +1,5 @@
 name: "Create Release PR"
-description: "Generate release branch & PR with LLM-powered notes"
+description: "Generate release branch & PR with LLM-powered notes and trigger deployment workflows"
 inputs:
   openai_api_key:
     description: "OpenAI API key"
@@ -7,9 +7,22 @@ inputs:
   github_token:
     description: "GitHub token"
     required: true
+  base_branch:
+    description: "Base branch (default: main)"
+    required: false
+    default: "main"
+  target_branch:
+    description: "Target branch (default: production)"
+    required: false
+    default: "production"
+  n8n_webhook_url:
+    description: "n8n webhook URL for deployment notifications"
+    required: true
 outputs:
   pr_url:
     description: "Created pull-request URL"
+  deployed_workspaces:
+    description: "List of workspaces that will be deployed"
 runs:
   using: "node20"
   main: "index.js"
