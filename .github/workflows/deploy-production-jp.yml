@@ -1,9 +1,7 @@
 name: Deploy Production - JP
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
