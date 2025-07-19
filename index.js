@@ -37,14 +37,26 @@ const WORKFLOW_PATTERNS = {
 };
 
 async function getLastTag() {
-  const { data } = await octo.request("GET /repos/{owner}/{repo}/tags", {
-    owner: OWNER,
-    repo: REPO,
-  });
+  try {
+    // 릴리즈 API를 사용해서 가장 최근 릴리즈의 태그 가져오기
+    const { data: releases } = await octo.request(
+      "GET /repos/{owner}/{repo}/releases",
+      {
+        owner: OWNER,
+        repo: REPO,
+        per_page: 1, // 가장 최근 릴리즈만 가져오기
+      }
+    );
 
-  console.log("🔍 Tags:", data);
+    if (releases.length > 0 && releases[0].tag_name) {
+      return releases[0].tag_name;
+    }
 
-  return data.at(-1)?.name ?? "0.0.0";
+    throw new Error("No release notes found to get last tag");
+  } catch (error) {
+    console.error("❌ Error getting last tag:", error.message);
+    return "0.0.0";
+  }
 }
 
 async function getCommitsSince(tag) {
