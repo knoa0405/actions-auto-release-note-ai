@@ -24,14 +24,14 @@ const WORKSPACE_MAPPING = {
 };
 
 const WORKFLOW_PATTERNS = {
-  kr: ["deploy-production-kr.yml"],
-  jp: ["deploy-production-jp.yml"],
-  intl: [
+  "coloso-kr": ["deploy-production-kr.yml"],
+  "coloso-jp": ["deploy-production-jp.yml"],
+  "coloso-intl": [
     "deploy-production-intl-asia.yml",
     "deploy-production-intl-us.yml",
     "deploy-production-intl-us-east.yml",
   ],
-  bo: ["deploy-production-backoffice.yml"],
+  "coloso-backoffice": ["deploy-production-backoffice.yml"],
 };
 
 async function getLastTag() {
@@ -80,7 +80,7 @@ async function generateReleaseNotes(commits, changedWorkspaces) {
         변경된 워크스페이스는 ${changedWorkspaces.join(", ")} 이다.
         카테고리는 다음과 같다.
         [Backoffice, Service: KR, Service: JP, Service: INTL(ASIA, US, US-EAST), Chore]
-        커밋들을 참고해서 카테고리를 정해주고, 카테고리 별로 커밋 내용에 있는 기능, 버그 수정, 코드 개선 등을 그룹화해줘.
+        변경된 워크스페이스와 카테고리를 매칭해서, 카테고리를 정해주고, 커밋들을 참고해서 카테고리 별로 커밋 내용에 있는 기능, 버그 수정, 코드 개선 등을 그룹화해줘.
         변경된 워크스페이스가 없으면, 카테고리는 chore 카테고리로 넣어주면 돼.
         `,
     },
@@ -180,10 +180,7 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
           wf.name
             .toLowerCase()
             .includes(pattern.replace(".yml", "").toLowerCase()) ||
-          wf.path.toLowerCase().includes(pattern.toLowerCase()) ||
-          wf.path.includes(
-            `deploy-production-${workspace === "bo" ? "backoffice" : workspace}`
-          )
+          wf.path.toLowerCase().includes(pattern.toLowerCase())
       );
 
       if (workflow) {
