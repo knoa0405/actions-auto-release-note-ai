@@ -308,6 +308,8 @@ async function run() {
   const { commits, files } = await getCommitsSince(lastTag);
   const noteMd = await generateReleaseNotes(commits);
 
+  console.log("🔍 Note MD:", noteMd);
+
   const nextVersion = bumpVersion(
     lastTag.replace(/^v?/, ""),
     commits.join("\n")
