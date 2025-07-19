@@ -77,17 +77,11 @@ async function generateReleaseNotes(commits, changedWorkspaces) {
       role: "system",
       content: `You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists. The output should be in Korean.
         카테고리는 변경된 워크스페이스에 따라 노트를 작성해줘.
-        변경된 워크스페이스는 다음과 같다. ${changedWorkspaces.join(", ")}
-        - Backoffice: BO
-        - Service: KR
-        - Service: JP
-        - Service: INTL
-        - Service: INTL-ASIA
-        - Service: INTL-US
-        - Service: INTL-US-EAST
-        - Chore: 빌드, 테스트, 패키지 업데이트, 문서 수정 등
+        변경된 워크스페이스는 ${changedWorkspaces.join(", ")} 이다.
+        카테고리는 다음과 같다.
+        [Backoffice, Service: KR, Service: JP, Service: INTL(ASIA, US, US-EAST), Chore]
         커밋들을 참고해서 카테고리를 정해주고, 카테고리 별로 커밋 내용에 있는 기능, 버그 수정, 코드 개선 등을 그룹화해줘.
-        변경된 워크스페이스가 없으면, chore 카테고리로 작성해줘.
+        변경된 워크스페이스가 없으면, 카테고리는 chore 카테고리로 넣어주면 돼.
         `,
     },
     { role: "user", content: JSON.stringify(commits) },
