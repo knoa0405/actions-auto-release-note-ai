@@ -11,12 +11,11 @@ const OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
 const GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
 const BASE_BRANCH = process.env.INPUT_BASE_BRANCH || "main";
 const TARGET_BRANCH = process.env.INPUT_TARGET_BRANCH || "production";
-const N8N_WEBHOOK_URL = process.env.INPUT_N8N_WEBHOOK_URL;
+const N8N_URL = process.env.INPUT_N8N_URL;
 
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-// 워크스페이스 매핑
 const WORKSPACE_MAPPING = {
   kr: "coloso-kr",
   jp: "coloso-jp",
@@ -24,7 +23,6 @@ const WORKSPACE_MAPPING = {
   bo: "coloso-backoffice",
 };
 
-// 워크플로우 패턴 매핑
 const WORKFLOW_PATTERNS = {
   kr: ["deploy-production-kr.yml"],
   jp: ["deploy-production-jp.yml"],
@@ -38,13 +36,12 @@ const WORKFLOW_PATTERNS = {
 
 async function getLastTag() {
   try {
-    // 릴리즈 API를 사용해서 가장 최근 릴리즈의 태그 가져오기
     const { data: releases } = await octo.request(
       "GET /repos/{owner}/{repo}/releases",
       {
         owner: OWNER,
         repo: REPO,
-        per_page: 1, // 가장 최근 릴리즈만 가져오기
+        per_page: 1,
       }
     );
 
@@ -297,13 +294,16 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
       timestamp: new Date().toISOString(),
     };
 
-    const response = await fetch(N8N_WEBHOOK_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    const response = await fetch(
+      `${N8N_URL}/webhook-test/fee0af68-be28-4fa5-96e2-8afe603a2835`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -349,8 +349,9 @@ async function run() {
     generate_release_notes: true,
   });
 
-  // 릴리즈 브랜치 생성
-  const branch = `release/${dayjs().format("YYYY-MM-DD")}`;
+  const branch = `release/${dayjs().format(
+    "YYYY-MM-DD-HHmmss"
+  )}-v${nextVersion}`;
 
   const { data: mainRef } = await octo.request(
     "GET /repos/{owner}/{repo}/git/ref/{ref}",

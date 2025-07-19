@@ -15,8 +15,8 @@ inputs:
     description: "Target branch (default: production)"
     required: false
     default: "production"
-  n8n_webhook_url:
-    description: "n8n webhook URL for deployment notifications"
+  n8n_url:
+    description: "n8n URL for deployment notifications"
     required: true
 outputs:
   pr_url:
