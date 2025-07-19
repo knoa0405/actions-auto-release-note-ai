@@ -54,15 +54,23 @@ async function getCommitsSince(tag) {
       basehead: `${tag}...${BASE_BRANCH}`,
     }
   );
-  return data.commits.map((c) => c.commit.message.split("\n")[0]); // subject line only
+  return {
+    commits: data.commits.map((c) => c.commit.message.split("\n")[0]), // subject line only
+    files: data.files || [], // 변경된 파일들
+  };
 }
 
 async function generateReleaseNotes(commits) {
   const messages = [
     {
       role: "system",
-      content:
-        "You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists. The output should be in Korean.",
+      content: `You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists. The output should be in Korean.
+        카테고리는 다음과 같다.
+        - Backoffice: BO
+        - Service: KR, JP, INTL
+        
+        커밋들을 참고해서 카테고리를 정해주고, 카테고리 별로 커밋 내용에 있는 기능, 버그 수정, 코드 개선 등을 그룹화해줘.
+        `,
     },
     { role: "user", content: JSON.stringify(commits) },
   ];
@@ -82,18 +90,52 @@ function bumpVersion(prev, commits) {
   return semver.inc(prev, "patch");
 }
 
-function parseChangedWorkspaces(commits) {
-  const changedWorkspaces = new Set();
+async function getWorkspaceChangesByTreeHash(tag) {
+  const { data } = await octo.request(
+    "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
+    {
+      owner: OWNER,
+      repo: REPO,
+      tree_sha: BASE_BRANCH,
+    }
+  );
 
-  commits.forEach((commit) => {
-    // kr:, jp:, intl:, bo: 패턴 매칭
-    const match = commit.match(/^(kr|jp|intl|bo):/i);
-    if (match) {
-      changedWorkspaces.add(match[1].toLowerCase());
+  console.log("🔍 Workspace trees:", data);
+  const workspaceTrees = {};
+  data.tree.forEach((item) => {
+    if (
+      item.type === "tree" &&
+      ["kr", "jp", "intl", "bo"].includes(item.path)
+    ) {
+      workspaceTrees[item.path] = item.sha;
     }
   });
 
-  return Array.from(changedWorkspaces);
+  console.log("🔍 Workspace trees:", workspaceTrees);
+  // 이전 태그와 비교
+  const { data: prevData } = await octo.request(
+    "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
+    {
+      owner: OWNER,
+      repo: REPO,
+      tree_sha: tag,
+    }
+  );
+
+  console.log("🔍 Previous workspace trees:", prevData);
+
+  const changedWorkspaces = [];
+  prevData.tree.forEach((item) => {
+    if (item.type === "tree" && workspaceTrees[item.path]) {
+      if (item.sha !== workspaceTrees[item.path]) {
+        changedWorkspaces.push(item.path);
+      }
+    }
+  });
+
+  console.log("🔍 Changed workspaces:", changedWorkspaces);
+
+  return changedWorkspaces;
 }
 
 async function getWorkflows() {
@@ -105,6 +147,7 @@ async function getWorkflows() {
         repo: REPO,
       }
     );
+    console.log("🔍 Workflows:", data.workflows);
     return data.workflows;
   } catch (error) {
     console.warn("Could not fetch workflows:", error.message);
@@ -117,6 +160,7 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
 
   for (const workspace of changedWorkspaces) {
     const workflowPatterns = WORKFLOW_PATTERNS[workspace] || [];
+    console.log("🔍 Workflow patterns:", workflowPatterns);
 
     for (const pattern of workflowPatterns) {
       const workflow = workflows.find(
@@ -203,63 +247,30 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
 
   let template = `h2. Release v${nextVersion}\n\n`;
 
-  // Backoffice 섹션
-  if (workspaceGroups.bo.length > 0) {
-    template += `h2. Backoffice\n\n|| |*BO*|\n`;
-    template += `||*Pull request*|[${prUrl}|${prUrl}|smart-link]|\n`;
-    template += `||*branch*|{{${TARGET_BRANCH}}}|\n`;
-    template += `||*Actions*|`;
-    workspaceGroups.bo.forEach((wf, index) => {
-      if (index > 0) template += " ";
-      template += `[${wf.workflowName}|${wf.url}]`;
-    });
-    template += `|\n\n`;
-  }
+  // 각 서비스별로 섹션 생성
+  const services = [
+    { key: "kr", name: "Korea Service" },
+    { key: "jp", name: "Japan Service" },
+    { key: "intl", name: "International Service" },
+    { key: "bo", name: "Backoffice" },
+  ];
 
-  // Service 섹션 (기존 Confluence 테이블 형식)
-  if (
-    workspaceGroups.kr.length > 0 ||
-    workspaceGroups.jp.length > 0 ||
-    workspaceGroups.intl.length > 0
-  ) {
-    template += `h2. Service\n\n|| |*KR*|*JP*|*INTL*|\n`;
-    template += `||*Pull request*|[${prUrl}|${prUrl}|smart-link]|[${prUrl}|${prUrl}|smart-link]|[${prUrl}|${prUrl}|smart-link]|\n`;
-    template += `||*branch*|{{${TARGET_BRANCH}}}|{{${TARGET_BRANCH}}}|{{${TARGET_BRANCH}}}|\n`;
-    template += `||*Actions*|`;
+  services.forEach((service) => {
+    const workflows = workspaceGroups[service.key];
+    if (workflows && workflows.length > 0) {
+      template += `h2. ${service.name}\n\n`;
+      template += `*Pull Request:* [${prUrl}|${prUrl}|smart-link]\n`;
+      template += `*Branch:* {{${TARGET_BRANCH}}}\n`;
+      template += `*Actions:* `;
 
-    // KR workflows
-    if (workspaceGroups.kr.length > 0) {
-      workspaceGroups.kr.forEach((wf, index) => {
-        if (index > 0) template += "\\n";
+      workflows.forEach((wf, index) => {
+        if (index > 0) template += ", ";
         template += `[${wf.workflowName}|${wf.url}]`;
       });
-    } else {
-      template += "No changes";
-    }
-    template += `|`;
 
-    // JP workflows
-    if (workspaceGroups.jp.length > 0) {
-      workspaceGroups.jp.forEach((wf, index) => {
-        if (index > 0) template += "\\n";
-        template += `[${wf.workflowName}|${wf.url}]`;
-      });
-    } else {
-      template += "No changes";
+      template += `\n\n`;
     }
-    template += `|`;
-
-    // INTL workflows
-    if (workspaceGroups.intl.length > 0) {
-      workspaceGroups.intl.forEach((wf, index) => {
-        if (index > 0) template += "\\n";
-        template += `[${wf.workflowName}|${wf.url}]`;
-      });
-    } else {
-      template += "No changes";
-    }
-    template += `|\n\n`;
-  }
+  });
 
   return template;
 }
@@ -294,7 +305,7 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
 
 async function run() {
   const lastTag = await getLastTag();
-  const commits = await getCommitsSince(lastTag);
+  const { commits, files } = await getCommitsSince(lastTag);
   const noteMd = await generateReleaseNotes(commits);
 
   const nextVersion = bumpVersion(
@@ -303,8 +314,12 @@ async function run() {
   );
 
   // 변경된 워크스페이스 파싱
-  const changedWorkspaces = parseChangedWorkspaces(commits);
+  const changedWorkspaces = await getWorkspaceChangesByTreeHash(lastTag);
   console.log("🔍 Changed workspaces:", changedWorkspaces);
+  console.log(
+    "📁 Changed files:",
+    files?.map((f) => f.filename).join(", ") || "None"
+  );
 
   // GitHub 릴리즈 생성
   await octo.request("POST /repos/{owner}/{repo}/releases", {
