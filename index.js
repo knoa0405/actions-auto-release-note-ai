@@ -329,7 +329,7 @@ async function run() {
   const { commits, files } = await getCommitsSince(lastTag);
 
   console.log("🔍 Last tag:", lastTag);
-  console.log("🔍 Note MD:", noteMd);
+  console.log("🔍 Commits:", commits);
 
   const nextVersion = bumpVersion(
     lastTag.replace(/^v?/, ""),
@@ -346,6 +346,8 @@ async function run() {
     "📁 Changed files:",
     files?.map((f) => f.filename).join(", ") || "None"
   );
+
+  console.log("🔍 Note MD:", noteMd);
 
   // GitHub 릴리즈 생성
   await octo.request("POST /repos/{owner}/{repo}/releases", {
