@@ -111,7 +111,6 @@ async function getWorkflows() {
         repo: REPO,
       }
     );
-    console.log("🔍 Workflows:", data.workflows);
     return data.workflows;
   } catch (error) {
     console.warn("Could not fetch workflows:", error.message);
