@@ -349,8 +349,9 @@ async function run() {
     generate_release_notes: true,
   });
 
-  // 릴리즈 브랜치 생성
-  const branch = `release/${dayjs().format("YYYY-MM-DD")}`;
+  const branch = `release/${dayjs().format(
+    "YYYY-MM-DD-HHmmss"
+  )}-v${nextVersion}`;
 
   const { data: mainRef } = await octo.request(
     "GET /repos/{owner}/{repo}/git/ref/{ref}",
