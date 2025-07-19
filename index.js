@@ -42,6 +42,8 @@ async function getLastTag() {
     repo: REPO,
   });
 
+  console.log("🔍 Tags:", data);
+
   return data.at(-1)?.name ?? "0.0.0";
 }
 
