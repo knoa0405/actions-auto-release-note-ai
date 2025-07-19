@@ -397,6 +397,7 @@ async function run() {
   // 워크플로우 가져오기 및 실행
   if (changedWorkspaces.length > 0) {
     const workflows = await getWorkflows();
+    // TODO: production 브랜치에 release 브랜치가 머지된 이후 실행
     const triggeredWorkflows = await triggerWorkflows(
       changedWorkspaces,
       workflows
