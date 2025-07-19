@@ -133,8 +133,6 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
           wf.path.toLowerCase().includes(pattern.toLowerCase())
       );
 
-      console.log("🔍 Workflow:", workflow);
-
       if (workflow) {
         try {
           await octo.request(
@@ -147,7 +145,6 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
             }
           );
 
-          // 최근 실행 정보 가져오기 (실제 run URL을 위해)
           const { data: runs } = await octo.request(
             "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
             {
@@ -157,8 +154,6 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
               per_page: 1,
             }
           );
-
-          console.log("🔍 Runs:", runs);
 
           const runUrl = runs.workflow_runs[0]
             ? runs.workflow_runs[0].html_url
@@ -170,10 +165,6 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
             workflowId: workflow.id,
             url: runUrl,
           });
-
-          console.log(
-            `✅ Triggered workflow: ${workflow.name} for ${workspace}`
-          );
         } catch (error) {
           console.error(
             `❌ Failed to trigger workflow ${workflow.name}:`,
@@ -195,20 +186,17 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
 
 function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
   const workspaceGroups = {
-    kr: [],
-    jp: [],
-    intl: [],
-    bo: [],
+    "coloso-kr": [],
+    "coloso-jp": [],
+    "coloso-intl": [],
+    "coloso-backoffice": [],
   };
 
-  // 워크플로우를 워크스페이스별로 그룹화
   triggeredWorkflows.forEach((wf) => {
     if (workspaceGroups[wf.workspace]) {
       workspaceGroups[wf.workspace].push(wf);
     }
   });
-
-  console.log("🔍 Triggered workflows:", triggeredWorkflows);
 
   let template = `h2. Release v${nextVersion}\n\n`;
 
@@ -294,17 +282,8 @@ async function run() {
   );
 
   const changedWorkspaces = await getChangedWorkspaces(files);
-
-  console.log("🔍 Changed workspaces:", changedWorkspaces);
-  console.log(
-    "📁 Changed files:",
-    files?.map((f) => f.filename).join(", ") || "None"
-  );
   const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
 
-  console.log("🔍 Note MD:", noteMd);
-
-  // GitHub 릴리즈 생성
   await octo.request("POST /repos/{owner}/{repo}/releases", {
     owner: OWNER,
     repo: REPO,
@@ -336,7 +315,6 @@ async function run() {
     },
   });
 
-  // PR 생성
   const { data: pr } = await octo.request("POST /repos/{owner}/{repo}/pulls", {
     owner: OWNER,
     repo: REPO,
@@ -350,29 +328,22 @@ async function run() {
 
   console.log(`✅ Release PR opened for v${nextVersion}: ${pr.html_url}`);
 
-  // 워크플로우 가져오기 및 실행
   if (changedWorkspaces.length > 0) {
     const workflows = await getWorkflows();
-    // TODO: production 브랜치에 release 브랜치가 머지된 이후 실행
     const triggeredWorkflows = await triggerWorkflows(
       changedWorkspaces,
       workflows
     );
 
-    console.log("🚀 Triggered workflows:", triggeredWorkflows);
-
-    // JIRA 템플릿 생성
     const jiraTemplate = generateJiraTemplate(
       pr.html_url,
       triggeredWorkflows,
       nextVersion
     );
 
-    // n8n 웹훅으로 전송
     await sendToN8n(jiraTemplate, changedWorkspaces);
   }
 
-  // Outputs 설정
   if (process.env["GITHUB_OUTPUT"]) {
     fs.appendFileSync(
       process.env["GITHUB_OUTPUT"],
