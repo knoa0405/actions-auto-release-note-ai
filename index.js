@@ -222,9 +222,8 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
 
   services.forEach((service) => {
     const workflows = workspaceGroups[service.key];
-    console.log("🔍 Workflows:", workflows);
+    console.log("🔍 Workflows for service:", service.name, workflows);
     if (workflows && workflows.length > 0) {
-      console.log("🔍 Service:", service);
       template += `h2. ${service.name}\n\n`;
       template += `*Pull Request:* [${prUrl}|${prUrl}|smart-link]\n`;
       template += `*Branch:* {{${TARGET_BRANCH}}}\n`;
