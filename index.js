@@ -16,23 +16,43 @@ const N8N_URL = process.env.INPUT_N8N_URL;
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-const WORKSPACE_MAPPING = {
-  kr: "coloso-kr",
-  jp: "coloso-jp",
-  intl: "coloso-intl",
-  bo: "coloso-backoffice",
-};
+async function getWorkspacesFromRepo() {
+  try {
+    const { data } = await octo.request("GET /repos/{owner}/{repo}/contents", {
+      owner: OWNER,
+      repo: REPO,
+      path: "",
+    });
 
-const WORKFLOW_PATTERNS = {
-  "coloso-kr": ["deploy-production-kr.yml"],
-  "coloso-jp": ["deploy-production-jp.yml"],
-  "coloso-intl": [
-    "deploy-production-intl-asia.yml",
-    "deploy-production-intl-us.yml",
-    "deploy-production-intl-us-east.yml",
-  ],
-  "coloso-backoffice": ["deploy-production-backoffice.yml"],
-};
+    const workspaces = data
+      .filter((item) => item.type === "dir" && item.name.startsWith("coloso-"))
+      .map((item) => item.name);
+
+    return workspaces;
+  } catch (error) {
+    console.warn("Could not fetch workspaces from repo:", error.message);
+    return [];
+  }
+}
+
+function generateWorkflowPatterns(workspaces) {
+  const patterns = {};
+
+  workspaces.forEach((workspace) => {
+    const serviceName = workspace.replace("coloso-", "");
+    patterns[workspace] = [`deploy-production-${serviceName}.yml`];
+  });
+
+  if (patterns["coloso-intl"]) {
+    patterns["coloso-intl"] = [
+      "deploy-production-intl-asia.yml",
+      "deploy-production-intl-us.yml",
+      "deploy-production-intl-us-east.yml",
+    ];
+  }
+
+  return patterns;
+}
 
 async function getLastTag() {
   try {
@@ -118,19 +138,23 @@ async function getWorkflows() {
   }
 }
 
-async function triggerWorkflows(changedWorkspaces, workflows) {
+async function triggerWorkflows(
+  changedWorkspaces,
+  workflows,
+  workflowPatterns
+) {
   const triggeredWorkflows = [];
 
   for (const workspace of changedWorkspaces) {
-    const workflowPatterns = WORKFLOW_PATTERNS[workspace] || [];
+    const patterns = workflowPatterns[workspace] || [];
 
-    for (const pattern of workflowPatterns) {
+    for (const pattern of patterns) {
       const workflow = workflows.find(
-        (wf) =>
-          wf.name
+        (workflow) =>
+          workflow.name
             .toLowerCase()
             .includes(pattern.replace(".yml", "").toLowerCase()) ||
-          wf.path.toLowerCase().includes(pattern.toLowerCase())
+          workflow.path.toLowerCase().includes(pattern.toLowerCase())
       );
 
       if (workflow) {
@@ -173,7 +197,7 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
         }
       } else {
         console.warn(
-          `⚠️  No workflow found for ${workspace} with patterns: ${workflowPatterns.join(
+          `⚠️  No workflow found for ${workspace} with patterns: ${patterns.join(
             ", "
           )}`
         );
@@ -184,13 +208,18 @@ async function triggerWorkflows(changedWorkspaces, workflows) {
   return triggeredWorkflows;
 }
 
-function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
-  const workspaceGroups = {
-    "coloso-kr": [],
-    "coloso-jp": [],
-    "coloso-intl": [],
-    "coloso-backoffice": [],
-  };
+function generateJiraTemplate(
+  prUrl,
+  triggeredWorkflows,
+  nextVersion,
+  workspaces
+) {
+  const workspaceGroups = {};
+
+  // 동적으로 워크스페이스 그룹 초기화
+  workspaces.forEach((workspace) => {
+    workspaceGroups[workspace] = [];
+  });
 
   triggeredWorkflows.forEach((wf) => {
     if (workspaceGroups[wf.workspace]) {
@@ -201,16 +230,21 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
   let template = `h2. Release v${nextVersion}\n\n`;
 
   // 각 서비스별로 섹션 생성
-  const services = [
-    { key: "kr", name: "Korea Service" },
-    { key: "jp", name: "Japan Service" },
-    { key: "intl", name: "International Service" },
-    { key: "bo", name: "Backoffice" },
-  ];
+  const services = workspaces.map((workspace) => {
+    const serviceName = workspace.replace("coloso-", "");
+    const displayName =
+      {
+        kr: "Korea Service",
+        jp: "Japan Service",
+        intl: "International Service",
+        backoffice: "Backoffice",
+      }[serviceName] || `${serviceName} Service`;
+
+    return { key: workspace, name: displayName };
+  });
 
   services.forEach((service) => {
     const workflows = workspaceGroups[service.key];
-    console.log("🔍 Workflows for service:", service.name, workflows);
     if (workflows && workflows.length > 0) {
       template += `h2. ${service.name}\n\n`;
       template += `*Pull Request:* [${prUrl}|${prUrl}|smart-link]\n`;
@@ -225,8 +259,6 @@ function generateJiraTemplate(prUrl, triggeredWorkflows, nextVersion) {
       template += `\n\n`;
     }
   });
-
-  console.log("🔍 JIRA template:", template);
 
   return template;
 }
@@ -254,7 +286,6 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    console.log("✅ Successfully sent to n8n webhook");
     return true;
   } catch (error) {
     console.error("❌ Failed to send to n8n webhook:", error.message);
@@ -273,6 +304,10 @@ async function getChangedWorkspaces(files) {
 }
 
 async function run() {
+  // 동적으로 워크스페이스 감지
+  const workspaces = await getWorkspacesFromRepo();
+  const workflowPatterns = generateWorkflowPatterns(workspaces);
+
   const lastTag = await getLastTag();
   const { commits, files } = await getCommitsSince(lastTag);
 
@@ -322,7 +357,7 @@ async function run() {
     head: branch,
     base: TARGET_BRANCH,
     body: `## v${nextVersion}\n\n${noteMd}\n\n### Changed Workspaces\n${changedWorkspaces
-      .map((ws) => `- ${WORKSPACE_MAPPING[ws] || ws}`)
+      .map((workspace) => `- ${workspace}`)
       .join("\n")}`,
   });
 
@@ -332,13 +367,15 @@ async function run() {
     const workflows = await getWorkflows();
     const triggeredWorkflows = await triggerWorkflows(
       changedWorkspaces,
-      workflows
+      workflows,
+      workflowPatterns
     );
 
     const jiraTemplate = generateJiraTemplate(
       pr.html_url,
       triggeredWorkflows,
-      nextVersion
+      nextVersion,
+      workspaces
     );
 
     await sendToN8n(jiraTemplate, changedWorkspaces);
