@@ -245,7 +245,6 @@ function generateJiraTemplate(
 
   services.forEach((service) => {
     const workflows = workspaceGroups[service.key];
-    console.log("🔍 Workflows for service:", service.name, workflows);
     if (workflows && workflows.length > 0) {
       template += `h2. ${service.name}\n\n`;
       template += `*Pull Request:* [${prUrl}|${prUrl}|smart-link]\n`;
@@ -260,8 +259,6 @@ function generateJiraTemplate(
       template += `\n\n`;
     }
   });
-
-  console.log("🔍 JIRA template:", template);
 
   return template;
 }
@@ -289,7 +286,6 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    console.log("✅ Successfully sent to n8n webhook");
     return true;
   } catch (error) {
     console.error("❌ Failed to send to n8n webhook:", error.message);
