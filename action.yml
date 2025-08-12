@@ -24,4 +24,5 @@ outputs:
   deployed_workspaces:
     description: "List of workspaces that will be deployed"
 runs:
-  using: "composite"
+  using: "node20"
+  main: "dist/index.js"
