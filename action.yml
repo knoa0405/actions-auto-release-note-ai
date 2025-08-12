@@ -24,5 +24,6 @@ outputs:
   deployed_workspaces:
     description: "List of workspaces that will be deployed"
 runs:
-  using: "node20"
-  main: "index.js"
+  using: "docker"
+  image: oven/bun:1
+  entrypoint: ["bun", "index.ts"]
