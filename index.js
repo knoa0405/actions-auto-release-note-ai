@@ -142,7 +142,7 @@ You are a professional release-note writer. Analyze the provided commits and cre
   ];
 
   const chat = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4.1-mini",
     messages,
     max_tokens: 1000,
   });
