@@ -17,6 +17,16 @@ const N8N_URL = process.env.INPUT_N8N_URL!;
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
+console.log(
+  OWNER,
+  REPO,
+  OPENAI_API_KEY,
+  GH_TOKEN,
+  BASE_BRANCH,
+  TARGET_BRANCH,
+  N8N_URL
+);
+
 async function getWorkspacesFromRepo() {
   try {
     const { data } = await octo.request("GET /repos/{owner}/{repo}/contents", {
