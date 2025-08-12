@@ -95,14 +95,40 @@ async function generateReleaseNotes(commits, changedWorkspaces) {
   const messages = [
     {
       role: "system",
-      content: `You are a professional release-note writer. Group commits by type and produce concise, human‑friendly Korean release notes in Markdown bullet lists. The output should be in Korean.
-        카테고리는 변경된 워크스페이스에 따라 노트를 작성해줘.
-        변경된 워크스페이스는 ${changedWorkspaces.join(", ")} 이다.
-        카테고리는 다음과 같다.
-        [Backoffice, Service: KR, Service: JP, Service: INTL(ASIA, US, US-EAST), Chore]
-        변경된 워크스페이스와 카테고리를 매칭해서, 카테고리를 정해주고, 커밋들을 참고해서 카테고리 별로 커밋 내용에 있는 기능, 버그 수정, 코드 개선 등을 그룹화해줘.
-        변경된 워크스페이스가 없으면, 카테고리는 chore 카테고리로 넣어주면 돼.
-        `,
+      content: `
+You are a professional release-note writer. Analyze the provided commits and create structured Korean release notes.
+**Instructions:**
+1. Categorize commits based on changed workspaces: ${changedWorkspaces.join(
+        ", "
+      )}
+2. Use these categories:
+   - Backoffice: 워크스페이스에 'coloso-backoffice'가 포함된 경우
+   - Service: KR: 워크스페이스에 'coloso-kr'가 포함된 경우  
+   - Service: JP: 워크스페이스에 'coloso-jp'가 포함된 경우
+   - Service: INTL: 워크스페이스에 'coloso-intl'가 포함된 경우
+   - Chore: 워크스페이스 변경이 없거나 기타 작업
+
+**Output Format:**
+각 카테고리별로 다음과 같은 구조로 작성해주세요:
+
+## [카테고리명]
+
+### 🚀 New Features
+- 기능 설명 (한국어)
+
+### �� Bug Fixes  
+- 버그 수정 내용 (한국어)
+
+### 🔧 Improvements
+- 코드 개선, 리팩토링 등 (한국어)
+
+### �� Documentation
+- 문서 업데이트 등 (한구어)
+
+**Note:** 
+- 각 커밋의 실제 내용을 분석해서 적절한 하위 카테고리에 분류해주세요
+- 한국어로 자연스럽게 작성해주세요
+- 변경된 워크스페이스가 없으면 Chore 카테고리로 분류해주세요`,
     },
     { role: "user", content: JSON.stringify(commits) },
   ];
