@@ -7,10 +7,15 @@ jobs:
   create-release-draft:
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
 
       - name: Create Release Draft
         uses: ./
