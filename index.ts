@@ -40,6 +40,8 @@ async function getWorkspacesFromRepo() {
   }
 }
 
+console.log(getWorkspacesFromRepo());
+
 function generateWorkflowPatterns(
   workspaces: string[]
 ): Record<string, string[]> {
