@@ -1,10 +1,14 @@
 {
   "name": "actions-auto-release-note-ai",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "index.ts",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rm -rf dist && tsc",
+    "build:watch": "tsc --watch",
+    "prepare": "husky install",
+    "pre-commit": "lint-staged"
   },
   "repository": {
     "type": "git",
@@ -23,5 +27,18 @@
     "dayjs": "^1.11.13",
     "openai": "^4.104.0",
     "semver": "^7.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/semver": "^7.7.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^15.0.0",
+    "typescript": "^5.0.0"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "bash -lc 'bun run build'",
+      "git add dist/"
+    ]
   }
 }

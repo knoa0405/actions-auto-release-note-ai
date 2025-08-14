@@ -2,16 +2,17 @@ import { Octokit } from "@octokit/core";
 import dayjs from "dayjs";
 import semver from "semver";
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import process from "node:process";
 import fs from "node:fs";
 
-const OWNER = process.env.GITHUB_REPOSITORY_OWNER;
-const REPO = process.env.GITHUB_REPOSITORY.split("/")[1];
-const OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY;
-const GH_TOKEN = process.env.INPUT_GITHUB_TOKEN;
+const OWNER = process.env.GITHUB_REPOSITORY_OWNER!;
+const REPO = process.env.GITHUB_REPOSITORY!.split("/")[1];
+const OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY!;
+const GH_TOKEN = process.env.INPUT_GITHUB_TOKEN!;
 const BASE_BRANCH = process.env.INPUT_BASE_BRANCH || "main";
 const TARGET_BRANCH = process.env.INPUT_TARGET_BRANCH || "production";
-const N8N_URL = process.env.INPUT_N8N_URL;
+const N8N_URL = process.env.INPUT_N8N_URL!;
 
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -24,19 +25,27 @@ async function getWorkspacesFromRepo() {
       path: "",
     });
 
-    const workspaces = data
-      .filter((item) => item.type === "dir" && item.name.startsWith("coloso-"))
-      .map((item) => item.name);
+    const workspaces = (data as Array<{ type: string; name: string }>)
+      .filter(
+        (item: { type: string; name: string }) =>
+          item.type === "dir" && item.name.startsWith("coloso-")
+      )
+      .map((item: { type: string; name: string }) => item.name);
 
     return workspaces;
-  } catch (error) {
-    console.warn("Could not fetch workspaces from repo:", error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("Could not fetch workspaces from repo:", message);
     return [];
   }
 }
 
-function generateWorkflowPatterns(workspaces) {
-  const patterns = {};
+console.log(getWorkspacesFromRepo());
+
+function generateWorkflowPatterns(
+  workspaces: string[]
+): Record<string, string[]> {
+  const patterns: Record<string, string[]> = {};
 
   workspaces.forEach((workspace) => {
     const serviceName = workspace.replace("coloso-", "");
@@ -70,13 +79,16 @@ async function getLastTag() {
     }
 
     throw new Error("No release notes found to get last tag");
-  } catch (error) {
-    console.error("❌ Error getting last tag:", error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("❌ Error getting last tag:", message);
     return "0.0.0";
   }
 }
 
-async function getCommitsSince(tag) {
+async function getCommitsSince(
+  tag: string
+): Promise<{ commits: string[]; files: Array<{ filename: string }> }> {
   const { data } = await octo.request(
     "GET /repos/{owner}/{repo}/compare/{basehead}",
     {
@@ -86,13 +98,18 @@ async function getCommitsSince(tag) {
     }
   );
   return {
-    commits: data.commits.map((c) => c.commit.message.split("\n")[0]), // subject line only
-    files: data.files || [], // 변경된 파일들
+    commits: (data.commits as any[]).map(
+      (c) => (c as any).commit.message.split("\n")[0]
+    ), // subject line only
+    files: (data.files as Array<{ filename: string }> | undefined) || [], // 변경된 파일들
   };
 }
 
-async function generateReleaseNotes(commits, changedWorkspaces) {
-  const messages = [
+async function generateReleaseNotes(
+  commits: string[],
+  changedWorkspaces: string[]
+): Promise<string> {
+  const messages: ChatCompletionMessageParam[] = [
     {
       role: "system",
       content: `
@@ -110,18 +127,18 @@ You are a professional release-note writer. Analyze the provided commits and cre
 
 ## [카테고리명]
 
-### 🚀 New Features
+###  New Features
 - 기능 설명 (한국어)
 
-### �� Bug Fixes  
+### Bug Fixes  
 - 버그 수정 내용 (한국어)
 
-### 🔧 Improvements
+### Improvements
 - 코드 개선, 리팩토링 등 (한국어)
 
 ## [카테고리명2]
 
-### 🚀 New Features
+### New Features
 - 기능 설명 (한국어)
 
 ### �� Bug Fixes  
@@ -146,13 +163,13 @@ You are a professional release-note writer. Analyze the provided commits and cre
     max_tokens: 1000,
   });
 
-  return chat.choices[0].message.content.trim();
+  return chat.choices[0].message.content?.trim() || "";
 }
 
-function bumpVersion(prev, commits) {
-  if (/BREAKING|major/i.test(commits)) return semver.inc(prev, "major");
-  if (/feat|feature/i.test(commits)) return semver.inc(prev, "minor");
-  return semver.inc(prev, "patch");
+function bumpVersion(prev: string, commits: string): string {
+  if (/BREAKING|major/i.test(commits)) return semver.inc(prev, "major") || prev;
+  if (/feat|feature/i.test(commits)) return semver.inc(prev, "minor") || prev;
+  return semver.inc(prev, "patch") || prev;
 }
 
 async function getWorkflows() {
@@ -165,18 +182,31 @@ async function getWorkflows() {
       }
     );
     return data.workflows;
-  } catch (error) {
-    console.warn("Could not fetch workflows:", error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("Could not fetch workflows:", message);
     return [];
   }
 }
 
 async function triggerWorkflows(
-  changedWorkspaces,
-  workflows,
-  workflowPatterns
-) {
-  const triggeredWorkflows = [];
+  changedWorkspaces: string[],
+  workflows: Array<{ id: number; name: string; path: string }>,
+  workflowPatterns: Record<string, string[]>
+): Promise<
+  Array<{
+    workspace: string;
+    workflowName: string;
+    workflowId: number;
+    url: string;
+  }>
+> {
+  const triggeredWorkflows: Array<{
+    workspace: string;
+    workflowName: string;
+    workflowId: number;
+    url: string;
+  }> = [];
 
   for (const workspace of changedWorkspaces) {
     const patterns = workflowPatterns[workspace] || [];
@@ -222,10 +252,12 @@ async function triggerWorkflows(
             workflowId: workflow.id,
             url: runUrl,
           });
-        } catch (error) {
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : String(error);
           console.error(
             `❌ Failed to trigger workflow ${workflow.name}:`,
-            error.message
+            message
           );
         }
       } else {
@@ -242,12 +274,25 @@ async function triggerWorkflows(
 }
 
 function generateJiraTemplate(
-  prUrl,
-  triggeredWorkflows,
-  nextVersion,
-  workspaces
-) {
-  const workspaceGroups = {};
+  prUrl: string,
+  triggeredWorkflows: Array<{
+    workspace: string;
+    workflowName: string;
+    workflowId: number;
+    url: string;
+  }>,
+  nextVersion: string,
+  workspaces: string[]
+): string {
+  const workspaceGroups: Record<
+    string,
+    Array<{
+      workspace: string;
+      workflowName: string;
+      workflowId: number;
+      url: string;
+    }>
+  > = {};
 
   // 동적으로 워크스페이스 그룹 초기화
   workspaces.forEach((workspace) => {
@@ -296,7 +341,10 @@ function generateJiraTemplate(
   return template;
 }
 
-async function sendToN8n(jiraTemplate, changedWorkspaces) {
+async function sendToN8n(
+  jiraTemplate: string,
+  changedWorkspaces: string[]
+): Promise<boolean> {
   try {
     const payload = {
       jiraTemplate,
@@ -320,20 +368,23 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
     }
 
     return true;
-  } catch (error) {
-    console.error("❌ Failed to send to n8n webhook:", error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("❌ Failed to send to n8n webhook:", message);
     return false;
   }
 }
 
-async function getChangedWorkspaces(files) {
+async function getChangedWorkspaces(
+  files: Array<{ filename: string }>
+): Promise<string[]> {
   const changedWorkspaces = files.map((file) => {
     if (file.filename.includes("coloso-")) {
       return file.filename.split("/")[0];
     }
     return null;
   });
-  return changedWorkspaces.filter((ws) => ws !== null);
+  return changedWorkspaces.filter((ws): ws is string => ws !== null);
 }
 
 async function run() {
@@ -344,10 +395,8 @@ async function run() {
   const lastTag = await getLastTag();
   const { commits, files } = await getCommitsSince(lastTag);
 
-  const nextVersion = bumpVersion(
-    lastTag.replace(/^v?/, ""),
-    commits.join("\n")
-  );
+  const nextVersion =
+    bumpVersion(lastTag.replace(/^v?/, ""), commits.join("\n")) || "0.0.1";
 
   const changedWorkspaces = await getChangedWorkspaces(files);
   const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
@@ -355,8 +404,8 @@ async function run() {
   await octo.request("POST /repos/{owner}/{repo}/releases", {
     owner: OWNER,
     repo: REPO,
-    tag_name: nextVersion,
-    name: nextVersion,
+    tag_name: `v${nextVersion}`,
+    name: `v${nextVersion}`,
     generate_release_notes: true,
   });
 

@@ -25,4 +25,4 @@ outputs:
     description: "List of workspaces that will be deployed"
 runs:
   using: "node20"
-  main: "index.js"
+  main: "dist/index.js"
