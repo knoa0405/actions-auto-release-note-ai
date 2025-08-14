@@ -2,24 +2,20 @@ name: Create Release Draft
 
 on:
   workflow_dispatch:
-    inputs:
-      tag_name:
-        description: "Release tag (e.g., v1.0.0)"
-        required: true
-        type: string
-      release_title:
-        description: "Release title"
-        required: true
-        type: string
 
 jobs:
   create-release-draft:
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
 
       - name: Create Release Draft
         uses: ./
@@ -29,6 +25,3 @@ jobs:
           base_branch: main
           target_branch: production
           n8n_url: ${{ secrets.N8N_URL }}
-          create_draft_only: true
-          tag_name: ${{ github.event.inputs.tag_name }}
-          release_title: ${{ github.event.inputs.release_title }}
