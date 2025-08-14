@@ -98,10 +98,8 @@ async function generateReleaseNotes(commits, changedWorkspaces) {
       content: `
 You are a professional release-note writer. Analyze the provided commits and create structured Korean release notes.
 **Instructions:**
-1. Categorize commits based on changed workspaces: ${changedWorkspaces.join(
-        ", "
-      )}
-2. Use these categories:
+- Changed workspaces: ${changedWorkspaces.join(", ")}
+- Use these categories:
    - Backoffice: changed workspaces 중 'coloso-backoffice'가 포함된 경우
    - Service: KR: changed workspaces 중 'coloso-kr'가 포함된 경우  
    - Service: JP: changed workspaces 중 'coloso-jp'가 포함된 경우
@@ -136,6 +134,7 @@ You are a professional release-note writer. Analyze the provided commits and cre
 - 각 커밋의 실제 내용을 분석해서 적절한 하위 카테고리에 분류해주세요
 - 한국어로 자연스럽게 작성해주세요
 - 내용이 없으면 그냥 해당 분류는 삭제해주세요 (예: 버그 수정 내용이 없으면 Bug Fixes 분류는 삭제해주세요)
+- changes workspaces 가 하나도 없으면 Chore 카테고리명으로 분류해주세요
 `,
     },
     { role: "user", content: JSON.stringify(commits) },
