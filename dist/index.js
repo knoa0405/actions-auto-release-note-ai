@@ -244,7 +244,7 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
             changedWorkspaces,
             timestamp: new Date().toISOString(),
         };
-        const response = await fetch(`${N8N_URL}/webhook-test/fee0af68-be28-4fa5-96e2-8afe603a2835`, {
+        const response = await fetch(`${N8N_URL}/webhook-test/1618299a-b305-4df0-b01d-91111d1f2d99`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
