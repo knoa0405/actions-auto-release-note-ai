@@ -102,11 +102,10 @@ You are a professional release-note writer. Analyze the provided commits and cre
         ", "
       )}
 2. Use these categories:
-   - Backoffice: 워크스페이스에 'coloso-backoffice'가 포함된 경우
-   - Service: KR: 워크스페이스에 'coloso-kr'가 포함된 경우  
-   - Service: JP: 워크스페이스에 'coloso-jp'가 포함된 경우
-   - Service: INTL: 워크스페이스에 'coloso-intl'가 포함된 경우
-   - Chore: 워크스페이스 변경이 없거나 기타 작업
+   - Backoffice: changed workspaces 중 'coloso-backoffice'가 포함된 경우
+   - Service: KR: changed workspaces 중 'coloso-kr'가 포함된 경우  
+   - Service: JP: changed workspaces 중 'coloso-jp'가 포함된 경우
+   - Service: INTL: changed workspaces 중 'coloso-intl'가 포함된 경우
 
 **Output Format:**
 각 카테고리별로 다음과 같은 구조로 작성해주세요:
@@ -122,13 +121,22 @@ You are a professional release-note writer. Analyze the provided commits and cre
 ### 🔧 Improvements
 - 코드 개선, 리팩토링 등 (한국어)
 
-### �� Documentation
-- 문서 업데이트 등 (한구어)
+## [카테고리명2]
+
+### 🚀 New Features
+- 기능 설명 (한국어)
+
+### �� Bug Fixes  
+- 버그 수정 내용 (한국어)
+
+### 🔧 Improvements
+- 코드 개선, 리팩토링 등 (한국어)
 
 **Note:** 
 - 각 커밋의 실제 내용을 분석해서 적절한 하위 카테고리에 분류해주세요
 - 한국어로 자연스럽게 작성해주세요
-- 변경된 워크스페이스가 없으면 Chore 카테고리로 분류해주세요`,
+- 내용이 없으면 그냥 해당 분류는 삭제해주세요 (예: 버그 수정 내용이 없으면 Bug Fixes 분류는 삭제해주세요)
+`,
     },
     { role: "user", content: JSON.stringify(commits) },
   ];
