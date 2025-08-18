@@ -401,7 +401,6 @@ async function run() {
     repo: REPO,
     tag_name: `v${nextVersion}`,
     name: `v${nextVersion}`,
-    generate_release_notes: false,
   });
 
   const branch = `release/${dayjs().format(
