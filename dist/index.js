@@ -31,7 +31,6 @@ async function getWorkspacesFromRepo() {
         return [];
     }
 }
-console.log(getWorkspacesFromRepo());
 function generateWorkflowPatterns(workspaces) {
     const patterns = {};
     workspaces.forEach((workspace) => {
