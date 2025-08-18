@@ -12,7 +12,8 @@ const OPENAI_API_KEY = process.env.INPUT_OPENAI_API_KEY!;
 const GH_TOKEN = process.env.INPUT_GITHUB_TOKEN!;
 const BASE_BRANCH = process.env.INPUT_BASE_BRANCH || "main";
 const TARGET_BRANCH = process.env.INPUT_TARGET_BRANCH || "production";
-const N8N_URL = process.env.INPUT_N8N_URL!;
+const N8N_URL = process.env.INPUT_N8N_URL;
+const MODE = process.env.INPUT_MODE || "both";
 
 const octo = new Octokit({ auth: GH_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -373,6 +374,11 @@ async function sendToN8n(
   jiraTemplate: string,
   changedWorkspaces: string[]
 ): Promise<boolean> {
+  if (!N8N_URL) {
+    console.log("N8N_URL not provided, skipping n8n notification");
+    return false;
+  }
+
   try {
     const payload = {
       jiraTemplate,
@@ -413,10 +419,28 @@ async function getChangedWorkspaces(
 }
 
 async function run() {
+  const mode = MODE.toLowerCase();
+  console.log(`🚀 Running Release Manager in ${mode} mode`);
+
   // 동적으로 워크스페이스 감지
   const workspaces = await getWorkspacesFromRepo();
   const workflowPatterns = generateWorkflowPatterns(workspaces);
 
+  if (mode === "release" || mode === "both") {
+    console.log("📝 Creating release...");
+    await createRelease(workspaces, workflowPatterns);
+  }
+
+  if (mode === "deploy" || mode === "both") {
+    console.log("🚀 Triggering deployments...");
+    await triggerDeployments(workspaces, workflowPatterns);
+  }
+}
+
+async function createRelease(
+  workspaces: string[],
+  workflowPatterns: Record<string, string[]>
+) {
   const lastTag = await getLastTag();
   const { commits, files } = await getCommitsSince(lastTag);
 
@@ -446,7 +470,7 @@ async function run() {
   await octo.request("POST /repos/{owner}/{repo}/git/refs", {
     owner: OWNER,
     repo: REPO,
-    ref: `refs/tags/v${nextVersion}`, // 태그!
+    ref: `refs/tags/v${nextVersion}`,
     sha: mainRef.object.sha,
     headers: {
       "X-GitHub-Api-Version": "2022-11-28",
@@ -475,22 +499,27 @@ async function run() {
       .join("\n")}`,
   });
 
-  if (changedWorkspaces.length > 0) {
-    const workflows = await getWorkflows();
-    const triggeredWorkflows = await triggerWorkflows(
-      changedWorkspaces,
-      workflows,
-      workflowPatterns
-    );
+  console.log(`✅ Release PR opened for v${nextVersion}: ${pr.html_url}`);
 
-    const jiraTemplate = generateJiraTemplate(
-      pr.html_url,
-      triggeredWorkflows,
-      nextVersion,
-      workspaces
-    );
+  // 기존 워크플로우 실행 로직은 배포 모드일 때만 실행
+  if (MODE === "deploy" || MODE === "both") {
+    if (changedWorkspaces.length > 0) {
+      const workflows = await getWorkflows();
+      const triggeredWorkflows = await triggerWorkflows(
+        changedWorkspaces,
+        workflows,
+        workflowPatterns
+      );
 
-    await sendToN8n(jiraTemplate, changedWorkspaces);
+      const jiraTemplate = generateJiraTemplate(
+        pr.html_url,
+        triggeredWorkflows,
+        nextVersion,
+        workspaces
+      );
+
+      await sendToN8n(jiraTemplate, changedWorkspaces);
+    }
   }
 
   if (process.env["GITHUB_OUTPUT"]) {
@@ -500,6 +529,42 @@ async function run() {
         ","
       )}\n`
     );
+  }
+}
+
+async function triggerDeployments(
+  workspaces: string[],
+  workflowPatterns: Record<string, string[]>
+) {
+  // 현재 변경사항 감지 (간단한 방법)
+  const changedWorkspaces = await getChangedWorkspaces([]);
+
+  if (changedWorkspaces.length > 0) {
+    const workflows = await getWorkflows();
+    const triggeredWorkflows = await triggerWorkflows(
+      changedWorkspaces,
+      workflows,
+      workflowPatterns
+    );
+
+    const jiraTemplate = generateJiraTemplate(
+      "", // PR URL이 없을 수 있음
+      triggeredWorkflows,
+      "current",
+      workspaces
+    );
+
+    await sendToN8n(jiraTemplate, changedWorkspaces);
+
+    if (process.env["GITHUB_OUTPUT"]) {
+      const urls = triggeredWorkflows.map((wf) => wf.url).join(",");
+      fs.appendFileSync(
+        process.env["GITHUB_OUTPUT"],
+        `triggered_workflows=${urls}\n`
+      );
+    }
+  } else {
+    console.log("No workspaces to deploy");
   }
 }
 
