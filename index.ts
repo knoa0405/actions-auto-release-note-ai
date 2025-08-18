@@ -84,9 +84,10 @@ async function getLastTag() {
   }
 }
 
-async function getCommitsSince(
-  tag: string
-): Promise<{ commits: string[]; files: Array<{ filename: string }> }> {
+async function getCommitsSince(tag: string): Promise<{
+  commits: Array<{ message: string; changedFolders: string[] }>;
+  files: Array<{ filename: string }>;
+}> {
   const { data } = await octo.request(
     "GET /repos/{owner}/{repo}/compare/{basehead}",
     {
@@ -95,16 +96,35 @@ async function getCommitsSince(
       basehead: `${tag}...${BASE_BRANCH}`,
     }
   );
+
+  // 각 커밋별로 변경된 폴더 정보 매핑
+  const commitsWithFolders = (data.commits as any[]).map((commit) => {
+    const changedFolders = new Set<string>();
+
+    // 해당 커밋 이후의 파일 변경사항에서 폴더 추출
+    ((data.files as Array<{ filename: string }>) || []).forEach((file) => {
+      if (file.filename.includes("/")) {
+        const folder = file.filename.split("/")[0];
+        if (folder.startsWith("coloso-")) {
+          changedFolders.add(folder);
+        }
+      }
+    });
+
+    return {
+      message: (commit as any).commit.message.split("\n")[0], // subject line only
+      changedFolders: Array.from(changedFolders),
+    };
+  });
+
   return {
-    commits: (data.commits as any[]).map(
-      (c) => (c as any).commit.message.split("\n")[0]
-    ), // subject line only
-    files: (data.files as Array<{ filename: string }> | undefined) || [], // 변경된 파일들
+    commits: commitsWithFolders,
+    files: (data.files as Array<{ filename: string }> | undefined) || [],
   };
 }
 
 async function generateReleaseNotes(
-  commits: string[],
+  commits: Array<{ message: string; changedFolders: string[] }>,
   changedWorkspaces: string[]
 ): Promise<string> {
   const messages: ChatCompletionMessageParam[] = [
@@ -112,44 +132,48 @@ async function generateReleaseNotes(
       role: "system",
       content: `
 You are a professional release-note writer. Analyze the provided commits and create structured Korean release notes.
+
+**Input Format:**
+Each commit includes:
+- message: 커밋 메시지
+- changedFolders: 변경된 폴더 목록 (예: ["coloso-backoffice", "coloso-kr"])
+
 **Instructions:**
 - Changed workspaces: ${changedWorkspaces.join(", ")}
+- Analyze each commit based on its message AND changed folders
 - Use these categories:
-   - Backoffice: changed workspaces 중 'coloso-backoffice'가 포함된 경우
-   - Service: KR: changed workspaces 중 'coloso-kr'가 포함된 경우  
-   - Service: JP: changed workspaces 중 'coloso-jp'가 포함된 경우
-   - Service: INTL: changed workspaces 중 'coloso-intl'가 포함된 경우
+   - Backoffice: changedFolders에 'coloso-backoffice'가 포함된 커밋들
+   - Service: KR: changedFolders에 'coloso-kr'가 포함된 커밋들  
+   - Service: JP: changedFolders에 'coloso-jp'가 포함된 커밋들
+   - Service: INTL: changedFolders에 'coloso-intl'가 포함된 커밋들
+
+**Analysis Rules:**
+1. 각 커밋을 해당하는 워크스페이스 카테고리로 분류
+2. 커밋 메시지의 내용을 분석하여 New Features/Bug Fixes/Improvements로 세분화
+3. 같은 커밋이 여러 워크스페이스에 영향을 준다면 각각에 포함
+4. 워크스페이스별로 변경사항을 그룹화하여 정리
 
 **Output Format:**
-각 카테고리별로 다음과 같은 구조로 작성해주세요:
+각 워크스페이스별로:
 
-## [카테고리명]
+## Backoffice
 
-###  New Features
-- 기능 설명 (한국어)
+### 🚀 New Features
+- 사용자 인증 기능 추가
 
-### Bug Fixes  
-- 버그 수정 내용 (한국어)
+### 🐛 Bug Fixes
+- 로그인 오류 수정 
 
-### Improvements
-- 코드 개선, 리팩토링 등 (한국어)
-
-## [카테고리명2]
-
-### New Features
-- 기능 설명 (한국어)
-
-### �� Bug Fixes  
-- 버그 수정 내용 (한국어)
+## Service: KR
 
 ### 🔧 Improvements
-- 코드 개선, 리팩토링 등 (한국어)
+- 성능 최적화
 
 **Note:** 
-- 각 커밋의 실제 내용을 분석해서 적절한 하위 카테고리에 분류해주세요
-- 한국어로 자연스럽게 작성해주세요
-- 내용이 없으면 그냥 해당 분류는 삭제해주세요 (예: 버그 수정 내용이 없으면 Bug Fixes 분류는 삭제해주세요)
-- changes workspaces 가 하나도 없으면 Chore 카테고리명으로 분류해주세요
+- 각 커밋의 실제 내용과 변경된 폴더를 모두 고려하여 분류
+- 한국어로 자연스럽게 작성
+- 내용이 없으면 해당 분류는 생략
+- changedWorkspaces가 하나도 없으면 Chore 카테고리로 분류
 `,
     },
     { role: "user", content: JSON.stringify(commits) },
@@ -391,7 +415,10 @@ async function run() {
   const { commits, files } = await getCommitsSince(lastTag);
 
   const nextVersion =
-    bumpVersion(lastTag.replace(/^v?/, ""), commits.join("\n")) || "0.0.1";
+    bumpVersion(
+      lastTag.replace(/^v?/, ""),
+      commits.map((c) => c.message).join("\n")
+    ) || "0.0.1";
 
   const changedWorkspaces = await getChangedWorkspaces(files);
   const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
