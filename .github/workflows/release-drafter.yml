@@ -60,6 +60,7 @@ jobs:
           tag: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }} 🌈
           version: ${{ steps.version.outputs.tag }}
+          publish: true # 자동으로 published 릴리즈로 발행
         # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
         # with:
         #   config-name: my-config.yml
