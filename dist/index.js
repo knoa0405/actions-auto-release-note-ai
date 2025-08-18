@@ -293,6 +293,59 @@ async function sendToN8n(jiraTemplate, changedWorkspaces) {
         return false;
     }
 }
+async function getChangedWorkspacesFromPR() {
+    const eventPath = process.env.GITHUB_EVENT_PATH;
+    if (!eventPath) {
+        console.log("GITHUB_EVENT_PATH not available, using all workspaces");
+        return {
+            workspaces: await getWorkspacesFromRepo(),
+            prUrl: "",
+            version: "current",
+        };
+    }
+    try {
+        const eventData = JSON.parse(fs.readFileSync(eventPath, "utf8"));
+        const pr = eventData.pull_request;
+        if (pr && pr.merged) {
+            console.log(`🔍 Analyzing merged PR #${pr.number}`);
+            // 머지된 PR의 변경사항 가져오기
+            const { data } = await octo.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
+                owner: OWNER,
+                repo: REPO,
+                pull_number: pr.number,
+            });
+            const changedWorkspaces = data
+                .map((file) => file.filename)
+                .filter((filename) => filename.includes("coloso-"))
+                .map((filename) => filename.split("/")[0]);
+            const uniqueWorkspaces = [...new Set(changedWorkspaces)];
+            console.log(`🔍 PR #${pr.number} changed workspaces: ${uniqueWorkspaces.join(", ")}`);
+            // PR 제목에서 버전 정보 추출
+            const versionMatch = pr.title.match(/Release v(\d+\.\d+\.\d+)/);
+            const version = versionMatch ? versionMatch[1] : "current";
+            console.log(`🔍 Extracted version: ${version}`);
+            return {
+                workspaces: uniqueWorkspaces,
+                prUrl: pr.html_url,
+                version: version,
+            };
+        }
+        console.log("PR not merged, using all workspaces");
+        return {
+            workspaces: await getWorkspacesFromRepo(),
+            prUrl: "",
+            version: "current",
+        };
+    }
+    catch (error) {
+        console.warn("Could not parse event data, using all workspaces:", error);
+        return {
+            workspaces: await getWorkspacesFromRepo(),
+            prUrl: "",
+            version: "current",
+        };
+    }
+}
 async function getChangedWorkspaces(files) {
     const changedWorkspaces = files.map((file) => {
         if (file.filename.includes("coloso-")) {
@@ -305,19 +358,18 @@ async function getChangedWorkspaces(files) {
 async function run() {
     const mode = MODE.toLowerCase();
     console.log(`🚀 Running Release Manager in ${mode} mode`);
-    // 동적으로 워크스페이스 감지
-    const workspaces = await getWorkspacesFromRepo();
-    const workflowPatterns = generateWorkflowPatterns(workspaces);
     if (mode === "release" || mode === "both") {
         console.log("📝 Creating release...");
-        await createRelease(workspaces, workflowPatterns);
+        await createRelease();
     }
     if (mode === "deploy" || mode === "both") {
+        const { workspaces, prUrl, version } = await getChangedWorkspacesFromPR();
+        const workflowPatterns = generateWorkflowPatterns(workspaces);
         console.log("🚀 Triggering deployments...");
-        await triggerDeployments(workspaces, workflowPatterns);
+        await triggerDeployments(workspaces, workflowPatterns, prUrl, version);
     }
 }
-async function createRelease(workspaces, workflowPatterns) {
+async function createRelease() {
     const lastTag = await getLastTag();
     const { commits, files } = await getCommitsSince(lastTag);
     const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), commits.map((c) => c.message).join("\n")) || "0.0.1";
@@ -360,27 +412,20 @@ async function createRelease(workspaces, workflowPatterns) {
             .join("\n")}`,
     });
     console.log(`✅ Release PR opened for v${nextVersion}: ${pr.html_url}`);
-    // 기존 워크플로우 실행 로직은 배포 모드일 때만 실행
-    if (MODE === "deploy" || MODE === "both") {
-        if (changedWorkspaces.length > 0) {
-            const workflows = await getWorkflows();
-            const triggeredWorkflows = await triggerWorkflows(changedWorkspaces, workflows, workflowPatterns);
-            const jiraTemplate = generateJiraTemplate(pr.html_url, triggeredWorkflows, nextVersion, workspaces);
-            await sendToN8n(jiraTemplate, changedWorkspaces);
-        }
-    }
     if (process.env["GITHUB_OUTPUT"]) {
         fs.appendFileSync(process.env["GITHUB_OUTPUT"], `pr_url=${pr.html_url}\ndeployed_workspaces=${changedWorkspaces.join(",")}\n`);
     }
 }
-async function triggerDeployments(workspaces, workflowPatterns) {
-    // 현재 변경사항 감지 (간단한 방법)
-    const changedWorkspaces = await getChangedWorkspaces([]);
+async function triggerDeployments(workspaces, workflowPatterns, prUrl, version) {
+    // 머지된 PR의 변경사항 감지
+    const { workspaces: changedWorkspaces, prUrl: currentPrUrl, version: currentVersion, } = await getChangedWorkspacesFromPR();
     if (changedWorkspaces.length > 0) {
+        console.log(`🚀 Deploying changed workspaces: ${changedWorkspaces.join(", ")}`);
         const workflows = await getWorkflows();
         const triggeredWorkflows = await triggerWorkflows(changedWorkspaces, workflows, workflowPatterns);
-        const jiraTemplate = generateJiraTemplate("", // PR URL이 없을 수 있음
-        triggeredWorkflows, "current", workspaces);
+        const jiraTemplate = generateJiraTemplate(currentPrUrl || prUrl, // 현재 PR URL이 있으면 사용, 없으면 전달받은 URL 사용
+        triggeredWorkflows, currentVersion || version, // 현재 버전이 있으면 사용, 없으면 전달받은 버전 사용
+        workspaces);
         await sendToN8n(jiraTemplate, changedWorkspaces);
         if (process.env["GITHUB_OUTPUT"]) {
             const urls = triggeredWorkflows.map((wf) => wf.url).join(",");
