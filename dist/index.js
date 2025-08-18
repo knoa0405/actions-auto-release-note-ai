@@ -103,9 +103,9 @@ You are a professional release-note writer. Analyze the provided commits and cre
 Each commit includes:
 - message: 커밋 메시지
 - changedFolders: 변경된 폴더 목록 (예: ["coloso-backoffice", "coloso-kr"])
+- changedWorkspaces: 변경된 워크스페이스 목록 (예: ["coloso-backoffice", "coloso-kr"])
 
 **Instructions:**
-- Changed workspaces: ${changedWorkspaces.join(", ")}
 - Analyze each commit based on its message AND changed folders
 - Use these categories:
    - Backoffice: changedFolders에 'coloso-backoffice'가 포함된 커밋들
@@ -142,7 +142,13 @@ Each commit includes:
 - changedWorkspaces가 하나도 없으면 Chore 카테고리로 분류
 `,
         },
-        { role: "user", content: JSON.stringify(commits) },
+        {
+            role: "user",
+            content: JSON.stringify({
+                commits,
+                changedWorkspaces,
+            }),
+        },
     ];
     const chat = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
@@ -300,18 +306,23 @@ async function run() {
     const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), commits.map((c) => c.message).join("\n")) || "0.0.1";
     const changedWorkspaces = await getChangedWorkspaces(files);
     const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
-    await octo.request("POST /repos/{owner}/{repo}/releases", {
-        owner: OWNER,
-        repo: REPO,
-        tag_name: `v${nextVersion}`,
-        name: `v${nextVersion}`,
-    });
     const branch = `release/${dayjs().format("YYYY-MM-DD-HHmmss")}-v${nextVersion}`;
     const { data: mainRef } = await octo.request("GET /repos/{owner}/{repo}/git/ref/{ref}", {
         owner: OWNER,
         repo: REPO,
         ref: `heads/${BASE_BRANCH}`,
     });
+    // 태그 생성
+    await octo.request("POST /repos/{owner}/{repo}/git/refs", {
+        owner: OWNER,
+        repo: REPO,
+        ref: `refs/tags/v${nextVersion}`, // 태그!
+        sha: mainRef.object.sha,
+        headers: {
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    });
+    // 브랜치 생성
     await octo.request("POST /repos/{owner}/{repo}/git/refs", {
         owner: OWNER,
         repo: REPO,
@@ -331,7 +342,6 @@ async function run() {
             .map((workspace) => `- ${workspace}`)
             .join("\n")}`,
     });
-    console.log(`✅ Release PR opened for v${nextVersion}: ${pr.html_url}`);
     if (changedWorkspaces.length > 0) {
         const workflows = await getWorkflows();
         const triggeredWorkflows = await triggerWorkflows(changedWorkspaces, workflows, workflowPatterns);
