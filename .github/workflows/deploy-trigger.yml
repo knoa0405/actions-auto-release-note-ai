@@ -1,15 +1,17 @@
-name: Create Release Draft
+name: Deploy Trigger
 
 on:
-  workflow_dispatch:
+  pull_request:
+    types: [closed]
+    branches: [production]
 
 jobs:
-  create-release-draft:
+  trigger_deployments:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       actions: write
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,12 +22,10 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Create Release Draft
+      - name: Trigger Deployments
         uses: ./
         with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
           target_branch: production
-          n8n_url: ${{ secrets.N8N_URL }}
-          mode: release
+          mode: deploy
