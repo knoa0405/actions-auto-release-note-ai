@@ -29,16 +29,39 @@ jobs:
       - name: Get latest release tag
         id: version
         run: |
-          # Get the latest release tag
-          LATEST_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq .tag_name 2>/dev/null || echo "v0.0.0")
+          # Debug: Check what's available
+          echo "Repository: ${{ github.repository }}"
+          echo "GitHub token available: ${{ secrets.GITHUB_TOKEN != '' }}"
+
+          # Try different methods to get tags
+          echo "=== Method 1: Check all releases ==="
+          ALL_RELEASES=$(gh api repos/${{ github.repository }}/releases --jq '.[0].tag_name' 2>/dev/null || echo "No releases found")
+          echo "All releases first tag: $ALL_RELEASES"
+
+          echo "=== Method 2: Check latest release ==="
+          LATEST_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq .tag_name 2>/dev/null || echo "No latest release")
           echo "Latest release tag: $LATEST_TAG"
 
-          if [ "$LATEST_TAG" != "v0.0.0" ]; then
-            echo "Using existing tag: $LATEST_TAG"
+          echo "=== Method 3: Check git tags ==="
+          git fetch --tags
+          GIT_TAGS=$(git tag --sort=-version:refname | head -1 || echo "No git tags")
+          echo "Latest git tag: $GIT_TAGS"
+
+          # Use the first available tag
+          if [ "$LATEST_TAG" != "No latest release" ] && [ "$LATEST_TAG" != "null" ]; then
+            echo "Using latest release tag: $LATEST_TAG"
             echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
             echo "version=${LATEST_TAG}" >> $GITHUB_OUTPUT
+          elif [ "$ALL_RELEASES" != "No releases found" ] && [ "$ALL_RELEASES" != "null" ]; then
+            echo "Using first available release tag: $ALL_RELEASES"
+            echo "tag=${ALL_RELEASES}" >> $GITHUB_OUTPUT
+            echo "version=${ALL_RELEASES}" >> $GITHUB_OUTPUT
+          elif [ "$GIT_TAGS" != "No git tags" ]; then
+            echo "Using latest git tag: $GIT_TAGS"
+            echo "tag=${GIT_TAGS}" >> $GITHUB_OUTPUT
+            echo "version=${GIT_TAGS}" >> $GITHUB_OUTPUT
           else
-            echo "No existing tag found, creating initial version"
+            echo "No tags found anywhere, creating initial version"
             echo "tag=v0.0.1" >> $GITHUB_OUTPUT
             echo "version=v0.0.1" >> $GITHUB_OUTPUT
           fi
