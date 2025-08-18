@@ -26,6 +26,11 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 모든 태그를 가져오기 위해
+
       - name: Get latest release tag
         id: version
         run: |
