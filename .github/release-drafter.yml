@@ -1,0 +1,71 @@
+name-template: "$RESOLVED_VERSION 🌈"
+categories:
+  - title: "🌳 Features"
+    labels:
+      - "feature"
+      - "enhancement"
+  - title: "🎋 Trunk"
+    labels:
+      - "trunk"
+      - "minor"
+  - title: "🪵 Bug Fixes"
+    labels:
+      - "fix"
+      - "bugfix"
+      - "bug"
+  - title: "👑 Management"
+    labels:
+      - "documentation"
+      - "chore"
+change-template: "- (#$NUMBER) $TITLE @$AUTHOR"
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+template: |
+  ## 🏡 Maintenance
+
+  $CHANGES
+autolabeler: # PR에 자동으로 label 붙혀주는 규칙
+  - label: "documentation"
+    files:
+      - "*.md"
+    branch:
+      - '/docs{0,1}\/.+/'
+    title:
+      - "/docs/i"
+  - label: "bug"
+    branch:
+      - '/fix\/.+/'
+    title:
+      - "/fix/i"
+      - "/bug/i"
+  - label: "enhancement"
+    branch:
+      - '/update\/.+/'
+      - '/feature\/.+/'
+      - '/feat\/.+/'
+      - '/refactor\/.+/'
+      - '/enhancement\/.+/'
+    title:
+      - '/update\s/i'
+      - "/refactor/i"
+      - '/enhancement\s/i'
+    body:
+      - "/COL-[0-9]{1,4}/"
+  - label: "chore"
+    branch:
+      - '/bump\/.+/'
+      - '/misc\/.+/'
+      - '/chore\/.+/'
+    title:
+      - "/bump/i"
+      - "/misc/i"
+      - "/chore/i"
+  - label: "trunk"
+    branch:
+      - '/trunk\/.+/'
+    title:
+      - "/trunk/i"
+  - label: "release"
+    branch:
+      - "/main/"
+    title:
+      - "/v[0-9]{1,4}.+/i"
