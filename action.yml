@@ -39,3 +39,10 @@ runs:
     - name: Run TypeScript
       shell: bash
       run: bun run index.ts
+      env:
+        INPUT_OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_BASE_BRANCH: ${{ inputs.base_branch }}
+        INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
+        INPUT_N8N_URL: ${{ inputs.n8n_url }}
+        INPUT_MODE: ${{ inputs.mode }}
