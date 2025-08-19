@@ -66,14 +66,6 @@ async function triggerDeployments(
     );
 
     await sendToN8n(jiraTemplate, changedWorkspaces);
-
-    if (process.env["GITHUB_OUTPUT"]) {
-      const urls = triggeredWorkflows.map((wf) => wf.url).join(",");
-      fs.appendFileSync(
-        process.env["GITHUB_OUTPUT"],
-        `triggered_workflows=${urls}\n`
-      );
-    }
   } else {
     console.log("No workspaces to deploy");
   }
