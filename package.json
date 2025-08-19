@@ -5,10 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rm -rf dist && tsc && tsc-alias -f -fe .js",
-    "build:watch": "tsc --watch",
-    "prepare": "husky install",
-    "pre-commit": "lint-staged"
+    "build": "rm -rf dist && tsc && tsc-alias -f -fe .js"
   },
   "repository": {
     "type": "git",
@@ -29,17 +26,9 @@
     "semver": "^7.7.2"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.11",
     "@types/semver": "^7.7.0",
-    "husky": "^8.0.0",
-    "lint-staged": "^15.0.0",
     "tsc-alias": "^1.8.16",
-    "typescript": "^5.0.0"
-  },
-  "lint-staged": {
-    "*.ts": [
-      "bash -lc 'bun run build'",
-      "git add dist/"
-    ]
+    "typescript": "^5.9.2"
   }
 }

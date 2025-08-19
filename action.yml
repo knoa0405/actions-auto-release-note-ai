@@ -3,7 +3,7 @@ description: "Complete release management: generate notes, create PR, and trigge
 inputs:
   openai_api_key:
     description: "OpenAI API key for generating release notes"
-    required: true
+    required: false
   github_token:
     description: "GitHub token"
     required: true
@@ -23,10 +23,6 @@ inputs:
     required: false
     default: "both"
 outputs:
-  pr_url:
-    description: "Created pull-request URL"
-  deployed_workspaces:
-    description: "List of workspaces that will be deployed"
   triggered_workflows:
     description: "List of triggered workflow URLs"
 runs:
