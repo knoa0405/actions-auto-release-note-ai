@@ -38,33 +38,70 @@ export async function getLastTag() {
         return "0.0.0";
     }
 }
-export async function getCommitsSince(tag) {
-    const { data } = await octo.request("GET /repos/{owner}/{repo}/compare/{basehead}", {
-        owner: OWNER,
-        repo: REPO,
-        basehead: `${tag}...${BASE_BRANCH}`,
-    });
-    // 각 커밋별로 변경된 폴더 정보 매핑
-    const commitsWithFolders = data.commits.map((commit) => {
-        const changedFolders = new Set();
-        // 해당 커밋 이후의 파일 변경사항에서 폴더 추출
-        (data.files || []).forEach((file) => {
-            if (file.filename.includes("/")) {
-                const folder = file.filename.split("/")[0];
-                if (folder.startsWith("coloso-")) {
-                    changedFolders.add(folder);
-                }
-            }
+export async function getMergedPRsSince(tag) {
+    try {
+        // 태그의 생성 날짜 가져오기
+        const { data: tagData } = await octo.request("GET /repos/{owner}/{repo}/git/refs/tags/{tag}", {
+            owner: OWNER,
+            repo: REPO,
+            tag: tag,
         });
+        const { data: tagObject } = await octo.request("GET /repos/{owner}/{repo}/git/tags/{tag_sha}", {
+            owner: OWNER,
+            repo: REPO,
+            tag_sha: tagData.object.sha,
+        });
+        // 태그 이후에 머지된 PR들을 base와 since 파라미터로 가져오기
+        const { data: prs } = await octo.request("GET /repos/{owner}/{repo}/pulls", {
+            owner: OWNER,
+            repo: REPO,
+            state: "closed",
+            base: BASE_BRANCH, // 메인 브랜치를 타겟으로 하는 PR들
+            sort: "updated",
+            direction: "desc",
+            per_page: 100,
+        });
+        // 태그 날짜 이후에 머지된 PR들만 필터링
+        const tagDate = new Date(tagObject.tagger.date);
+        const relevantPRs = prs.filter((pr) => pr.merged_at && new Date(pr.merged_at) > tagDate);
+        // 각 PR의 변경된 파일들 확인
+        const prsWithFiles = await Promise.all(relevantPRs.map(async (pr) => {
+            const { data: files } = await octo.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
+                owner: OWNER,
+                repo: REPO,
+                pull_number: pr.number,
+            });
+            // 변경된 폴더 추출
+            const changedFolders = new Set();
+            const fileNames = files.map((file) => file.filename);
+            fileNames.forEach((filename) => {
+                if (filename.includes("/")) {
+                    const folder = filename.split("/")[0];
+                    if (folder.startsWith("coloso-")) {
+                        changedFolders.add(folder);
+                    }
+                }
+            });
+            return {
+                number: pr.number,
+                title: pr.title,
+                description: pr.body || "",
+                changedFolders: Array.from(changedFolders),
+                files: fileNames,
+                htmlUrl: pr.html_url,
+            };
+        }));
+        console.log(prsWithFiles);
         return {
-            message: commit.commit.message.split("\n")[0], // subject line only
-            changedFolders: Array.from(changedFolders),
+            mergedPRs: prsWithFiles,
         };
-    });
-    return {
-        commits: commitsWithFolders,
-        files: data.files || [],
-    };
+    }
+    catch (error) {
+        console.error("❌ Error getting merged PRs:", error);
+        return {
+            mergedPRs: [],
+        };
+    }
 }
 export async function getWorkflows() {
     try {

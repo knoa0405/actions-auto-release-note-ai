@@ -2,23 +2,26 @@ import dayjs from "dayjs";
 import semver from "semver";
 import fs from "node:fs";
 import { OWNER, REPO, BASE_BRANCH, TARGET_BRANCH } from "../config/environment.js";
-import { octo, getLastTag, getCommitsSince, getChangedWorkspaces, } from "../github/octokit.js";
+import { octo, getLastTag, getMergedPRsSince, } from "../github/octokit.js";
 import { generateReleaseNotes } from "../ai/openai-client.js";
-export function bumpVersion(prev, commits) {
-    if (/BREAKING|major/i.test(commits))
+export function bumpVersion(prev, prs) {
+    if (/BREAKING|major/i.test(prs))
         return semver.inc(prev, "major") || prev;
-    if (/feat|feature/i.test(commits))
+    if (/feat|feature/i.test(prs))
         return semver.inc(prev, "minor") || prev;
     return semver.inc(prev, "patch") || prev;
 }
 export async function createRelease() {
     const lastTag = await getLastTag();
-    const { commits, files } = await getCommitsSince(lastTag);
-    console.log(commits);
-    console.log(files);
-    const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), commits.map((c) => c.message).join("\n")) || "0.0.1";
-    const changedWorkspaces = await getChangedWorkspaces(files);
-    const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
+    const { mergedPRs } = await getMergedPRsSince(lastTag);
+    const nextVersion = bumpVersion(lastTag.replace(/^v?/, ""), mergedPRs.map((pr) => pr.title).join("\n")) || "0.0.1";
+    // 모든 PR에서 변경된 워크스페이스 수집
+    const allChangedWorkspaces = new Set();
+    mergedPRs.forEach((pr) => {
+        pr.changedFolders.forEach((folder) => allChangedWorkspaces.add(folder));
+    });
+    const changedWorkspaces = Array.from(allChangedWorkspaces);
+    const noteMd = await generateReleaseNotes(mergedPRs, changedWorkspaces);
     const branch = `release/${dayjs().format("YYYY-MM-DD-HHmmss")}-v${nextVersion}`;
     const { data: mainRef } = await octo.request("GET /repos/{owner}/{repo}/git/ref/{ref}", {
         owner: OWNER,
