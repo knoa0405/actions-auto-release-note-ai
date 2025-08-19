@@ -59,7 +59,7 @@ export async function getMergedPRsSince(tag: string): Promise<MergedPRsResult> {
       {
         owner: OWNER,
         repo: REPO,
-        tag: tag.replace(/^v/, ""), // v 접두사 제거
+        tag: tag,
       }
     );
 

@@ -44,7 +44,7 @@ export async function getMergedPRsSince(tag) {
         const { data: tagData } = await octo.request("GET /repos/{owner}/{repo}/git/refs/tags/{tag}", {
             owner: OWNER,
             repo: REPO,
-            tag: tag.replace(/^v/, ""), // v 접두사 제거
+            tag: tag,
         });
         const { data: tagObject } = await octo.request("GET /repos/{owner}/{repo}/git/tags/{tag_sha}", {
             owner: OWNER,
