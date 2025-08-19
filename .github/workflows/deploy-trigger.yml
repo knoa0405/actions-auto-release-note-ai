@@ -28,4 +28,5 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           base_branch: main
           target_branch: production
+          n8n_url: ${{ secrets.N8N_URL }}
           mode: deploy
