@@ -28,8 +28,9 @@ Each PR includes:
 **Analysis Rules:**
 1. 각 PR을 해당하는 워크스페이스 카테고리로 분류
 2. PR 제목과 설명을 분석하여 New Features/Bug Fixes/Improvements로 세분화
-3. 같은 PR이 여러 워크스페이스에 영향을 준다면 각각에 포함
-4. 워크스페이스별로 변경사항을 그룹화하여 정리
+3. 각 PR description 에 있는 내용을 요약해 [PR 번호] 뒤에 추가
+4. 같은 PR이 여러 워크스페이스에 영향을 준다면 각각에 포함
+5. 워크스페이스별로 변경사항을 그룹화하여 정리
 
 **Output Format:**
 각 워크스페이스별로:
@@ -37,7 +38,7 @@ Each PR includes:
 ## Backoffice
 
 ### 🚀 New Features
-- [PR #123] 사용자 인증 기능 추가
+- [PR #123] 데이터 조회 기능 추가  
 
 ### 🐛 Bug Fixes
 - [PR #124] 로그인 오류 수정 
