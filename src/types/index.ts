@@ -3,6 +3,15 @@ export interface Commit {
   changedFolders: string[];
 }
 
+export interface MergedPR {
+  number: number;
+  title: string;
+  description: string;
+  changedFolders: string[];
+  files: string[];
+  htmlUrl: string;
+}
+
 export interface Workflow {
   id: number;
   name: string;
@@ -25,4 +34,8 @@ export interface ChangedWorkspacesResult {
 export interface CommitsResult {
   commits: Commit[];
   files: Array<{ filename: string }>;
+}
+
+export interface MergedPRsResult {
+  mergedPRs: MergedPR[];
 }

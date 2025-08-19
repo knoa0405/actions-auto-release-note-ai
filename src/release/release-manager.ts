@@ -5,32 +5,35 @@ import { OWNER, REPO, BASE_BRANCH, TARGET_BRANCH } from "../config/environment";
 import {
   octo,
   getLastTag,
-  getCommitsSince,
+  getMergedPRsSince,
   getChangedWorkspaces,
 } from "../github/octokit";
 import { generateReleaseNotes } from "../ai/openai-client";
 
-export function bumpVersion(prev: string, commits: string): string {
-  if (/BREAKING|major/i.test(commits)) return semver.inc(prev, "major") || prev;
-  if (/feat|feature/i.test(commits)) return semver.inc(prev, "minor") || prev;
+export function bumpVersion(prev: string, prs: string): string {
+  if (/BREAKING|major/i.test(prs)) return semver.inc(prev, "major") || prev;
+  if (/feat|feature/i.test(prs)) return semver.inc(prev, "minor") || prev;
   return semver.inc(prev, "patch") || prev;
 }
 
 export async function createRelease() {
   const lastTag = await getLastTag();
-  const { commits, files } = await getCommitsSince(lastTag);
-
-  console.log(commits);
-  console.log(files);
+  const { mergedPRs } = await getMergedPRsSince(lastTag);
 
   const nextVersion =
     bumpVersion(
       lastTag.replace(/^v?/, ""),
-      commits.map((c) => c.message).join("\n")
+      mergedPRs.map((pr) => pr.title).join("\n")
     ) || "0.0.1";
 
-  const changedWorkspaces = await getChangedWorkspaces(files);
-  const noteMd = await generateReleaseNotes(commits, changedWorkspaces);
+  // 모든 PR에서 변경된 워크스페이스 수집
+  const allChangedWorkspaces = new Set<string>();
+  mergedPRs.forEach((pr) => {
+    pr.changedFolders.forEach((folder) => allChangedWorkspaces.add(folder));
+  });
+  const changedWorkspaces = Array.from(allChangedWorkspaces);
+
+  const noteMd = await generateReleaseNotes(mergedPRs, changedWorkspaces);
 
   const branch = `release/${dayjs().format(
     "YYYY-MM-DD-HHmmss"
