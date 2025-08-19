@@ -22,9 +22,6 @@ inputs:
     description: "Action mode: 'release' or 'deploy' or 'both' (default: both)"
     required: false
     default: "both"
-outputs:
-  triggered_workflows:
-    description: "List of triggered workflow URLs"
 runs:
   using: "composite"
   steps:
