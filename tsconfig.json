@@ -13,7 +13,6 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": false,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true
   },
   "include": [
     "index.ts"
