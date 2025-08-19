@@ -91,6 +91,7 @@ export async function getMergedPRsSince(tag) {
                 htmlUrl: pr.html_url,
             };
         }));
+        console.log(prsWithFiles);
         return {
             mergedPRs: prsWithFiles,
         };

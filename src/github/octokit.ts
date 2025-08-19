@@ -128,6 +128,8 @@ export async function getMergedPRsSince(tag: string): Promise<MergedPRsResult> {
       })
     );
 
+    console.log(prsWithFiles);
+
     return {
       mergedPRs: prsWithFiles,
     };
