@@ -1,4 +1,4 @@
-import { N8N_URL } from "../config/environment";
+import { N8N_URL } from "../config/environment.js";
 const sendToN8n = async (jiraTemplate, changedWorkspaces) => {
     if (!N8N_URL) {
         console.log("N8N_URL not provided, skipping n8n notification");

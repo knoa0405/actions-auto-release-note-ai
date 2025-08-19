@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { OPENAI_API_KEY } from "../config/environment";
+import { OPENAI_API_KEY } from "../config/environment.js";
 export const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 export async function generateReleaseNotes(commits, changedWorkspaces) {
     const messages = [

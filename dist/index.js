@@ -1,12 +1,12 @@
 import process from "node:process";
 import fs from "node:fs";
-import { MODE, OWNER, REPO } from "./src/config/environment";
-import { getChangedWorkspacesFromPR } from "./src/github/octokit";
-import { createRelease } from "./src/release/release-manager";
-import { generateWorkflowPatterns, triggerWorkflows, } from "./src/deployment/deployment-manager";
-import { getWorkflows } from "./src/github/octokit";
-import { generateJiraTemplate } from "./src/templates/jira-template";
-import sendToN8n from "./src/utils/n8n-client";
+import { MODE, OWNER, REPO } from "./src/config/environment.js";
+import { getChangedWorkspacesFromPR } from "./src/github/octokit.js";
+import { createRelease } from "./src/release/release-manager.js";
+import { generateWorkflowPatterns, triggerWorkflows, } from "./src/deployment/deployment-manager.js";
+import { getWorkflows } from "./src/github/octokit.js";
+import { generateJiraTemplate } from "./src/templates/jira-template.js";
+import sendToN8n from "./src/utils/n8n-client.js";
 async function run() {
     const mode = MODE.toLowerCase();
     console.log(`🚀 Running Release Manager in ${mode} mode`);

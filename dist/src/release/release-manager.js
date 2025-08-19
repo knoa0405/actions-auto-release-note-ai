@@ -1,9 +1,9 @@
 import dayjs from "dayjs";
 import semver from "semver";
 import fs from "node:fs";
-import { OWNER, REPO, BASE_BRANCH, TARGET_BRANCH } from "../config/environment";
-import { octo, getLastTag, getCommitsSince, getChangedWorkspaces, } from "../github/octokit";
-import { generateReleaseNotes } from "../ai/openai-client";
+import { OWNER, REPO, BASE_BRANCH, TARGET_BRANCH } from "../config/environment.js";
+import { octo, getLastTag, getCommitsSince, getChangedWorkspaces, } from "../github/octokit.js";
+import { generateReleaseNotes } from "../ai/openai-client.js";
 export function bumpVersion(prev, commits) {
     if (/BREAKING|major/i.test(commits))
         return semver.inc(prev, "major") || prev;

@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/core";
-import { OWNER, REPO, GH_TOKEN, BASE_BRANCH } from "../config/environment";
+import { OWNER, REPO, GH_TOKEN, BASE_BRANCH } from "../config/environment.js";
 import fs from "node:fs";
 export const octo = new Octokit({ auth: GH_TOKEN });
 export async function getWorkspacesFromRepo() {

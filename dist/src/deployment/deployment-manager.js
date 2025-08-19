@@ -1,5 +1,5 @@
-import { OWNER, REPO, TARGET_BRANCH } from "../config/environment";
-import { octo } from "../github/octokit";
+import { OWNER, REPO, TARGET_BRANCH } from "../config/environment.js";
+import { octo } from "../github/octokit.js";
 export function generateWorkflowPatterns(workspaces) {
     const patterns = {};
     workspaces.forEach((workspace) => {

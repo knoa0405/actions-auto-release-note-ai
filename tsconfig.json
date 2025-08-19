@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "nodenext",
+    "module": "ESNext",
+    "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "./",
     "strict": true,
@@ -13,7 +13,6 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": false,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true
   },
   "include": [
     "index.ts"

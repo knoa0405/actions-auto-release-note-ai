@@ -1,4 +1,4 @@
-import { TARGET_BRANCH } from "../config/environment";
+import { TARGET_BRANCH } from "../config/environment.js";
 export function generateJiraTemplate(releaseUrl, prUrl, triggeredWorkflows, nextVersion, workspaces) {
     const workspaceGroups = {};
     // 동적으로 워크스페이스 그룹 초기화
