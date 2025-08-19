@@ -38,6 +38,7 @@ runs:
         bun-version: latest
 
     - name: Install dependencies
+      shell: bash
       run: bun install
 
     - name: Run TypeScript
