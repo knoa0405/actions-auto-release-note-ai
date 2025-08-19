@@ -28,12 +28,30 @@ export async function createRelease() {
         repo: REPO,
         ref: `heads/${BASE_BRANCH}`,
     });
-    // 태그 생성
+    // Annotated 태그 생성 (2단계)
+    // 1. 태그 객체 생성
+    const { data: tagObject } = await octo.request("POST /repos/{owner}/{repo}/git/tags", {
+        owner: OWNER,
+        repo: REPO,
+        tag: `v${nextVersion}`,
+        message: `Release v${nextVersion}`,
+        object: mainRef.object.sha,
+        type: "commit",
+        tagger: {
+            name: "GitHub Actions",
+            email: "actions@github.com",
+            date: new Date().toISOString(),
+        },
+        headers: {
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    });
+    // 2. 태그 참조 생성
     await octo.request("POST /repos/{owner}/{repo}/git/refs", {
         owner: OWNER,
         repo: REPO,
         ref: `refs/tags/v${nextVersion}`,
-        sha: mainRef.object.sha,
+        sha: tagObject.sha,
         headers: {
             "X-GitHub-Api-Version": "2022-11-28",
         },
