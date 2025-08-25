@@ -172,4 +172,4 @@ export INPUT_N8N_WEBHOOK_URL=https://...
 
 ## 📄 라이선스
 
-ISC License
+MIT License
